@@ -25,10 +25,12 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 
 기본 접속 주소:
 
+- Health: http://127.0.0.1:8080/api/v1/health
+
 - Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html
 - OpenAPI JSON: http://127.0.0.1:8080/v3/api-docs
 
-아직 업무 API가 없어 Swagger의 API 목록은 비어 있습니다. LLM 제공자·모델·키도 빈 값이며 실제 호출은 없습니다.
+서버 기동 후 `curl http://127.0.0.1:8080/api/v1/health`로 `{"status":"UP"}`을 확인합니다. health는 인증 없이 접근하고 DB·LLM 상태를 조회하지 않으며, 현재 앱 기동에는 DB가 필요합니다. Swagger에는 health가 표시되고 감정 탐색 업무 API는 아직 없습니다. LLM 제공자·모델·키도 빈 값이며 실제 호출은 없습니다.
 
 ## 환경변수
 
@@ -56,7 +58,7 @@ Compose는 MySQL을 호스트의 `127.0.0.1`에만 노출합니다. 운영 배�
 java -jar build/libs/ganzithon-0.0.1-SNAPSHOT.jar
 ```
 
-일반 테스트는 H2 인메모리 DB로 애플리케이션 기동, Swagger UI 및 OpenAPI 접근, JDBC 연결을 검사합니다. MySQL 호환성 검증을 대체하지 않습니다.
+일반 테스트는 MVC slice의 health 계약과 DB 의존성 없음, H2 기반 앱 기동·health·Swagger 접근, JDBC 연결, ArchUnit 의존 방향을 검사합니다. MySQL 호환성 검증을 대체하지 않습니다.
 
 실제 MySQL 연결 테스트는 위 로컬 DB 준비 후 별도로 실행합니다:
 
