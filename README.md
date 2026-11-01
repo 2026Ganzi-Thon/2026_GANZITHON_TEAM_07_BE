@@ -30,7 +30,8 @@
 | LLM | | 미정 |
 | Security | 미정 | 인증·인가 요구사항에 따라 결정 |
 | Infrastructure | 미정 | 배포 환경 선정 필요 |
-| CI/CD | 미정 | 빌드·배포 방식 선정 필요 |
+| CI | GitHub Actions | PR 및 main push 시 훅·Java 21·MySQL 8.4 검사 |
+| Deployment | 미정 | 배포 방식 선정 필요 |
 
 <br />
 
@@ -80,7 +81,7 @@ flowchart LR
 
 ## 🌲 Git 브랜치 전략 (Git Branching Strategy)
 
-`main`을 기준으로 작업 브랜치를 만들고, 개인 포크를 거쳐 팀 저장소로 PR을 보냅니다.
+`origin`은 팀 저장소를 가리킵니다. 최신 `origin/main`에서 작업 브랜치를 만들고, 팀 저장소에 해당 브랜치를 push한 뒤 `main`으로 PR을 보냅니다. 로컬 `main`에는 팀에서 merge된 변경만 pull로 반영합니다.
 
 - `main`: 팀 저장소의 기준 브랜치
 - `feat/<이슈번호>-<기능명>`: 기능 개발
@@ -91,10 +92,10 @@ flowchart LR
 이슈 번호가 없으면 생략할 수 있습니다. 커밋은 `feat(auth): 로그인 API 추가`처럼 `<type>(<scope>): <한국어 설명>` 형식을 사용합니다.
 
 ```text
-팀 저장소 main → 작업 브랜치 → 개인 포크(origin)에 push → 팀 저장소(upstream)에 PR
+팀 origin/main → 작업 브랜치 → 팀 origin에 브랜치 push → main으로 PR → 리뷰·CI → merge
 ```
 
-`main`과 팀 저장소에 직접 push하지 않으며, pre-push 훅을 우회하지 않습니다. 자세한 절차는 [협업 워크플로](docs/agents/workflow.md)와 [PR 작성 규칙](docs/agents/pr.md)을 확인하세요.
+`main`에 직접 push하지 않으며, pre-push 훅을 우회하지 않습니다. 자세한 절차는 [협업 워크플로](docs/agents/workflow.md)와 [PR 작성 규칙](docs/agents/pr.md)을 확인하세요.
 
 <br />
 
@@ -116,7 +117,7 @@ docker compose up -d --wait mysql
 
 빌드·테스트: `./gradlew clean test bootJar`. 기본 테스트는 H2를 사용하며, 실제 MySQL 연결 검증 방법은 아래 실행 가이드를 참고합니다.
 
-JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 실행 가이드](docs/getting-started.md)에 정리합니다. 기여 시에는 먼저 개인 포크를 준비하고 [협업 워크플로](docs/agents/workflow.md)의 원격 저장소 설정을 따릅니다.
+JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 실행 가이드](docs/getting-started.md)에 정리합니다. 기여 시에는 팀 저장소 쓰기 권한을 준비하고 [협업 워크플로](docs/agents/workflow.md)의 원격 저장소 설정을 따릅니다.
 
 <br />
 
@@ -132,4 +133,5 @@ JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 
 | [기술적 의사결정 및 트러블슈팅](docs/technical-decisions.md) | 기술 선택 근거와 문제 해결 기록 |
 | [개발 환경 및 실행 가이드](docs/getting-started.md) | 로컬 설정, 실행, 테스트 |
 | [에이전트 개발 절차](docs/agents/development.md) | 문서 읽기, 범위 결정, 명세 구체화, 완료 기준 |
-| [협업 워크플로](docs/agents/workflow.md) | 브랜치, 커밋, 포크 기반 PR 절차 |
+| [협업 워크플로](docs/agents/workflow.md) | 브랜치, 커밋, 팀 저장소 PR 절차 |
+| [공유 저장소 전환](docs/shared-repository-migration.md) | 기존 fork 클론의 원격·main 추적 정리 |

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: ganzithon
+          MYSQL_USER: ganzithon
+          MYSQL_PASSWORD: ci_app_password
+          MYSQL_ROOT_PASSWORD: ci_root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Verify push guard
+        run: python3 scripts/test_pre_push.py
+      - name: Build and test with MySQL 8.4
+        env:
+          RUN_MYSQL_TESTS: 'true'
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_NAME: ganzithon
+          DB_USERNAME: ganzithon
+          DB_PASSWORD: ci_app_password
+        run: ./gradlew --no-daemon clean test bootJar
