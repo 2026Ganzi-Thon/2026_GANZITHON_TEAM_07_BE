@@ -2,11 +2,15 @@
 
 [README로 돌아가기](../README.md)
 
-## 현재 계획
+## 채택한 초기 구성 · 2026-11-01
 
-백엔드 프레임워크로 Spring Boot를 사용할 예정입니다. 버전, 언어, 빌드 도구 및 선택 근거는 아직 문서화되지 않았습니다.
+- Spring Boot 4.1.2 + Java 21: 신규 프로젝트에서 지원 중인 프레임워크를 사용합니다. 초기 후보 3.x에서 변경한 배경은 [ADR-0001](adr/0001-spring-boot-4.md)에 기록했습니다.
+- Gradle 9.8.2 Wrapper: 설치 없이 동일한 빌드 도구를 사용하며 공식 SHA-256으로 배포 파일을 검증합니다. Java 21 toolchain을 요구합니다.
+- MySQL 8.4 LTS + Spring Data JPA: 사용자가 제안한 MySQL을 채택하고 로컬 Compose를 제공합니다. 엔티티와 스키마는 기능 구현 시 설계합니다.
+- springdoc 3.2.0: [공식 호환성 표](https://springdoc.org/#what-is-the-compatibility-matrix-of-springdoc-openapi-with-spring-boot)의 Boot 4.1.x 조합을 사용합니다.
+- LLM: 사용자가 감정을 표현하면 내면의 감정을 탐색할 수 있도록 후속 질문을 이어가는 역할입니다. 제공자·모델·SDK·질문 전략은 미정이며 이번에는 빈 설정만 둡니다.
 
-검증된 장애 해결 사례나 성능 측정 결과는 아직 없습니다. 아래 양식을 실제 결정과 문제 해결 시 채웁니다.
+근거: [Spring Boot 요구사항](https://docs.spring.io/spring-boot/system-requirements.html), [Gradle Java 호환성](https://docs.gradle.org/current/userguide/compatibility.html), [MySQL LTS 안내](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html).
 
 ## 기술적 의사결정 작성 양식
 
