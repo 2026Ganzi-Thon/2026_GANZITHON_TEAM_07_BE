@@ -98,6 +98,11 @@ still follow this convention. This is a team convention, not an installed hook.
 
 Read `docs/agents/pr.md` and use `.github/pull_request_template.md` before writing
 or updating a PR. Target `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`, base `main`.
+For dependent tasks, a stacked PR may temporarily target its prerequisite task
+branch so each PR shows only its own changes. Record the dependency, merge the
+prerequisite first, and retarget the dependent PR to main afterward. CI runs for
+all PR base branches. Keep the final integration target main.
+
 After committing and validating the task:
 
 ```sh

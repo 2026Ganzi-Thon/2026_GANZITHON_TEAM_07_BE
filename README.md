@@ -45,6 +45,8 @@ flowchart LR
     Backend --> DB[(MySQL 8.4)]
 ```
 
+단일 Gradle 모듈에서 기능별 헥사고날 구조를 사용합니다. 의존 규칙은 [ADR-0002](docs/adr/0002-feature-hexagonal-architecture.md)에 기록하며 health API는 별도 후속 작업으로 진행합니다.
+
 구성 요소와 통신 방식은 [시스템 아키텍처](docs/architecture.md)에 정리합니다.
 
 <br />

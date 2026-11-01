@@ -12,6 +12,13 @@
 
 근거: [Spring Boot 요구사항](https://docs.spring.io/spring-boot/system-requirements.html), [Gradle Java 호환성](https://docs.gradle.org/current/userguide/compatibility.html), [MySQL LTS 안내](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html).
 
+## 기능별 헥사고날 구조 · 2026-11-02
+
+단일 Gradle 모듈에서 기능별 domain/application/adapter를 사용합니다.
+[ADR-0002](adr/0002-feature-hexagonal-architecture.md)에 의존 방향을 기록하며,
+ArchUnit 1.5.1 core를 테스트 전용으로 사용해 규칙을 검사합니다.
+API 구현은 별도 티켓과 브랜치로 진행합니다.
+
 ## 기술적 의사결정 작성 양식
 
 - **제목 / 날짜:**
