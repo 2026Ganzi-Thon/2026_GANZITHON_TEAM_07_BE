@@ -50,3 +50,7 @@ Git ignore 판정으로 OS 파일·Java 아카이브 등 27개 제외 대상과 
 훅은 팀 작업 브랜치만 허용하는 규칙으로 바꾸고 실제 Git 환경에서 회귀 검사를 추가했습니다. CI는 Java 21·MySQL 8.4와 훅 검사를 실행합니다. 현재 계정은 WRITE 권한이며 main 서버 보호 설정은 꺼져 있어 관리자 설정 절차를 별도로 문서화했습니다. 검증과 최종 결과는 [전환 검증 기록](shared-repository-workflow/verification.md)에 남깁니다.
 
 공유 저장소 작업 브랜치 push와 PR #5 생성이 성공했고, 구현 커밋의 GitHub Actions에서 훅 9개·Java 21·MySQL 8.4 검증을 통과했습니다. 원격 main은 변경하지 않았습니다.
+
+## 2026-11-02: 헥사고날 기반과 health API 분리
+
+사용자가 단일 모듈의 기능별 헥사고날 구조와 인증 없는 `GET /api/v1/health` → `{"status":"UP"}`을 승인했습니다. 티켓을 먼저 정리한 후, 요청에 따라 구조 기반 `refactor/hexagonal-foundation`과 API `feat/health-api`를 별도 브랜치·커밋으로 분리했습니다. API는 기반 커밋에 의존하며 두 PR의 diff를 분리합니다. 상세 계약·검증은 [작업 스펙](hexagonal-health/spec.md)과 [검증 기록](hexagonal-health/verification.md)을 참고합니다.

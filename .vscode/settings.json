@@ -1,5 +1,6 @@
 {
   "git.detectWorktrees": true,
   "git.autofetch": true,
-  "git.confirmSync": true
+  "git.confirmSync": true,
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

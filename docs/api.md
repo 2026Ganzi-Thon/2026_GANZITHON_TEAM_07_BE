@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-Spring Boot와 springdoc 구성을 추가했습니다. 아직 업무 엔드포인트는 없습니다. `.env`에서 `API_DOCS_ENABLED=true`로 설정하면 아래 문서 경로가 활성화됩니다.
+Spring Boot와 springdoc 구성을 추가했습니다. 서버 응답 확인용 health API를 제공합니다. 감정 탐색 등 업무 엔드포인트는 아직 없습니다. `.env`에서 `API_DOCS_ENABLED=true`로 설정하면 아래 문서 경로가 활성화됩니다.
 
 - Swagger UI: `http://127.0.0.1:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://127.0.0.1:8080/v3/api-docs`
@@ -30,8 +30,8 @@ Spring Boot와 springdoc 구성을 추가했습니다. 아직 업무 엔드포�
 | 항목 | 상태 |
 | :--- | :--- |
 | 로컬 / 배포 Base URL | 로컬 `http://127.0.0.1:8080` / 배포 미정 |
-| API 경로 및 버전 정책 | 미정 |
-| 요청·응답 Content-Type | 미정 |
+| API 경로 및 버전 정책 | 앱 API는 `/api/v1` 접두사 사용. Swagger·OpenAPI 경로는 유지 |
+| 요청·응답 Content-Type | health 응답 `application/json`; 업무 API 계약은 기능별 정의 |
 | 인증 방식 및 권한 | 미정 |
 | 공통 응답 / 오류 형식 | 미정 |
 | 날짜·시간 형식 및 시간대 | 미정 |
@@ -41,7 +41,26 @@ Spring Boot와 springdoc 구성을 추가했습니다. 아직 업무 엔드포�
 
 | Method | URI | 설명 | 인증 / 권한 | 상태 |
 | :--- | :--- | :--- | :--- | :--- |
-| — | — | 요구사항 확정 후 작성 | 미정 | 정의 전 |
+| GET | `/api/v1/health` | 기동된 서버의 HTTP 응답 확인 | 인증 없음 | 구현 완료 |
+
+## Health API
+
+- **관련 범위:** 업무 기능 전 기반 작업
+- **Method / URI:** `GET /api/v1/health`
+- **인증:** 없음. 토큰·세션·별도 헤더 없이 접근합니다.
+- **입력:** 경로·쿼리 파라미터, 요청 본문 없음
+- **정상 응답:** HTTP 200, `Content-Type: application/json`
+
+```json
+{"status":"UP"}
+```
+
+기동된 애플리케이션의 HTTP 요청 처리 여부를 확인합니다. 요청 시 DB·LLM을
+조회하지 않으며 전체 의존 서비스의 정상 상태를 보장하지 않습니다. 현재 JPA
+설정상 앱 기동에는 DB가 필요합니다. DB readiness는 후속 설계 대상입니다.
+`/health` 별칭은 제공하지 않으며 POST 요청은 405를 반환합니다. Swagger 설정과
+무관하게 endpoint가 동작합니다. 이 API의 JSON은 전체 업무 API의 공통 응답
+포맷을 확정하는 결정이 아닙니다.
 
 ## 엔드포인트 상세 작성 양식
 

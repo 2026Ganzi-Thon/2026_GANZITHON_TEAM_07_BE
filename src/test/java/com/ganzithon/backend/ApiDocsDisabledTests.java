@@ -22,6 +22,12 @@ class ApiDocsDisabledTests {
     MockMvc mockMvc;
 
     @Test
+    void servesHealthWhenApiDocsAreDisabled() throws Exception {
+        mockMvc.perform(get("/api/v1/health"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void hidesApiDocsWhenDisabled() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isNotFound());
