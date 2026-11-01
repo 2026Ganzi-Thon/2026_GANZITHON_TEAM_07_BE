@@ -118,4 +118,5 @@ JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 
 | [데이터베이스 설계 및 ERD](docs/database.md) | 테이블, 관계, 제약조건 |
 | [기술적 의사결정 및 트러블슈팅](docs/technical-decisions.md) | 기술 선택 근거와 문제 해결 기록 |
 | [개발 환경 및 실행 가이드](docs/getting-started.md) | 로컬 설정, 실행, 테스트 |
+| [에이전트 개발 절차](docs/agents/development.md) | 문서 읽기, 범위 결정, 명세 구체화, 완료 기준 |
 | [협업 워크플로](docs/agents/workflow.md) | 브랜치, 커밋, 포크 기반 PR 절차 |
