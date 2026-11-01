@@ -30,6 +30,6 @@
 
 ## 남아 있는 worktree
 
-기존 두 worktree는 브랜치 점유를 해제한 detached 상태입니다. 폴더가 존재해도 현재 브랜치를 점유하지 않습니다. README worktree의 미커밋 `.gitignore` 수정은 보존했습니다. 백엔드 초기 구성용 임시 worktree는 기본 폴더로 옮긴 뒤 제거했습니다.
+기존 두 worktree는 브랜치 점유를 해제한 detached 상태입니다. 폴더가 존재해도 현재 브랜치를 점유하지 않습니다. README worktree의 `.gitignore` 수정은 원본을 로컬 백업에 보존한 뒤 현재 작업 브랜치로 반영합니다. 백엔드 초기 구성용 임시 worktree는 기본 폴더로 옮긴 뒤 제거했습니다.
 
 이 정보는 기록 당시 상태이며, 실제 작업 전에는 `git status`와 `git worktree list`로 다시 확인합니다.

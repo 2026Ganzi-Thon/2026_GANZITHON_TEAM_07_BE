@@ -31,7 +31,12 @@
 - MySQL 8.4 Compose 기동 및 JDBC 연결 검증: [기반 작업 이슈](backend-bootstrap/issues/01-bootstrap.md)
 - LLM 제공자·모델·비용·연동 방식, 질문 전략과 대화 정책 결정: [서비스 스펙](service/spec.md)
 - 업무 API·인증·저장 모델·MVP 범위 결정과 기능 구현
-- 기존 README worktree에 보존한 `.gitignore` 수정의 처리 여부 결정
 - PR #4 리뷰 및 팀 절차에 따른 merge: agent는 merge하지 않음
 
 보존한 원본 환경 파일이나 비밀값은 기록에 복사하지 않습니다. 일회성 `/tmp` 파일과 빌드 결과는 재생성 가능한 자료이며 Git 이력에 포함하지 않습니다.
+
+## 추가 작업: 보존된 ignore 규칙 반영
+
+사용자가 이전 README worktree에 남아 있던 Windows·macOS·Java ignore 규칙의 확인과 커밋을 요청했습니다. 현재 브랜치의 환경변수·IDE·개발 산출물 규칙과 합치고, `*.jar`에 `gradle/wrapper/gradle-wrapper.jar` 예외를 두었습니다. `.scratch` 작업 기록 추적은 유지합니다. 원본 파일은 기존 로컬 백업 폴더에 보존하며, 반영 후 이전 worktree의 미커밋 변경은 정리합니다.
+
+Git ignore 판정으로 OS 파일·Java 아카이브 등 27개 제외 대상과 Wrapper·`.scratch` 기록 등 6개 추적 대상이 의도대로 처리되는 것을 확인했습니다. macOS CR 문자 패턴과 `git diff --check`도 통과했습니다. 애플리케이션 코드는 변경하지 않아 빌드 테스트는 재실행하지 않습니다.
