@@ -2,8 +2,8 @@
 
 ## Start every task
 
-1. Read `docs/agents/workflow.md` before changing files. Follow its worktree,
-   branch, commit, and GitHub PR conventions.
+1. Read `docs/agents/workflow.md` before changing files. Follow its branch,
+   commit, optional worktree, and GitHub PR conventions.
 2. Inspect `git status --short --branch`, `git remote -v`, and
    `git worktree list`. Preserve existing changes and identify the task's branch.
 3. Before planning or implementing features, fixing behavior, or changing project
@@ -26,12 +26,12 @@ Before writing or updating a PR, read `docs/agents/pr.md` and use
 
 ### Issue tracker
 
-Track issues in `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`.
+Track issues locally in `.scratch/<feature>/`.
 Read `docs/agents/issue-tracker.md` before issue operations.
 
 ### Triage labels
 
-Use the five canonical triage labels.
+Use the five canonical triage states in local issue files.
 Read `docs/agents/triage-labels.md` before triaging.
 
 ### Domain docs

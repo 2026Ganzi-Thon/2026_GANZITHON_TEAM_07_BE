@@ -1,59 +1,63 @@
 # Engineering workflow
 
-## Start and isolate work
+## Start work
 
-Use one branch and one worktree per independent task. Continue in an existing
-task worktree when it already matches the request. Keep the primary checkout on
-`main` as the coordination checkout. Preserve unrelated and uncommitted changes;
-stage only files belonging to the task.
+Use one task branch per independent task in the main repository folder.
+Continue the current task branch when it matches the request. Preserve unrelated
+and uncommitted changes; stage only files belonging to the task.
 
-Before editing, inspect status, remotes, worktrees, and the relevant issue.
+Before editing, inspect status, remotes, worktrees, and the relevant local ticket.
+Read `docs/agents/issue-tracker.md` for the `.scratch/` ticket layout.
 This clone uses `origin` for the personal fork and `upstream` for the team repo.
-Verify URLs in each new clone. Publishing always follows this route:
+Verify URLs in each new clone. Publishing follows this route:
 task branch → personal fork (`origin`) → PR to the team repository (`upstream`).
 Never push `main`, including the fork's `main`, or push any branch directly to
 the team repository. If `origin` points to the team repo, configure a personal
 fork as `origin` and the team repo as `upstream` before publishing.
 
-For a new task, run from the primary checkout:
+For a new task, first preserve existing changes, then run:
 
 ```sh
 git fetch upstream
-mkdir -p .worktrees
-git -c branch.autoSetupMerge=false worktree add -b feat/123-login .worktrees/feat-123-login upstream/main
-cd .worktrees/feat-123-login
+git -c branch.autoSetupMerge=false switch -c feat/123-login upstream/main
 ```
 
-Replace the branch and directory with the task's values. Fetch and worktree
-creation must succeed before editing. If the team default branch changes, use
-that branch instead of `main`. Configure the fork/team remotes as above if an
-`upstream` remote is missing.
-
-The command disables automatic tracking of `upstream/main` for the new task
-branch. Its tracking branch is set by the first `git push -u origin <branch>`.
-Before using VS Code Sync, verify that the task branch tracks its matching
-`origin/<branch>`. Read `docs/vscode.md` when opening worktrees in VS Code or
-troubleshooting repository selection and synchronization.
+Fetch and branch creation must succeed before editing. If the team default
+branch changes, use that branch instead of `main`. Configure the fork/team
+remotes as above if an `upstream` remote is missing.
 
 Branch format: `<type>/<issue-number>-<short-kebab-description>`.
-Without an issue, use `<type>/<short-kebab-description>`; an issue is not required
-for a small maintenance task. Example: `chore/agent-workflow`.
+Without a GitHub issue, use `<type>/<short-kebab-description>`, for example
+`build/backend-bootstrap`. Local ticket references use `.scratch/` paths;
+do not use their local numbers as GitHub issue references.
 Use the commit types below for branch prefixes too.
 
-Worktrees share committed history, but have separate files and indexes.
-Uncommitted files in the primary checkout are absent from new worktrees.
-For the initial collaboration configuration, create a bootstrap task branch in
-the current checkout before committing, then push that branch to the fork and
-open a PR. Start subsequent worktrees from a base containing the configuration;
-carry only explicitly selected task changes between worktrees.
+The command disables automatic tracking of `upstream/main`. The first
+`git push -u origin <branch>` sets tracking to the personal fork. Before using
+VS Code Sync, verify tracking is `origin/<branch>`. Read `docs/vscode.md` when
+choosing the working folder or troubleshooting synchronization.
+
+### Optional worktrees
+
+Use a worktree only when parallel work needs an isolated checkout. Otherwise,
+keep source edits in the main repository folder; `.scratch/` holds local work
+records, not another source checkout.
+
+```sh
+mkdir -p .worktrees
+git -c branch.autoSetupMerge=false worktree add -b feat/parallel-task .worktrees/feat-parallel-task upstream/main
+```
+
+Worktrees share committed history and have separate files and indexes. A branch
+already checked out in one worktree cannot be checked out in another. Open its
+folder instead, or move the work after preserving changes and freeing the branch.
+Install dependencies separately and use distinct ports for parallel servers.
 Avoid recursive file searches through `.worktrees/` from the primary checkout.
 
-Install dependencies separately in each worktree when a build system exists.
-Keep local credentials outside Git and use distinct ports for parallel servers.
-After a task is merged and its worktree is clean, remove that worktree from the
-primary checkout using `git worktree remove .worktrees/<directory>`.
-Use `git branch -d <branch>` only when Git confirms the branch is merged; retain
-it if squash merging prevents that check. Never force removal to discard work.
+After a worktree is no longer needed and its changes are committed, remove it
+using `git worktree remove .worktrees/<directory>`. Never force removal to
+discard work. Use `git branch -d <branch>` only when Git confirms it is merged;
+retain it if squash merging prevents that check.
 
 ## Commit conventions
 
@@ -96,8 +100,9 @@ still follow this convention. This is a team convention, not an installed hook.
 
 ## GitHub pull requests
 
-Read `docs/agents/issue-tracker.md` for the team repository and issue operations.
-Target the team's `main` branch, or its current default branch if changed.
+Track work locally as described in `docs/agents/issue-tracker.md`.
+Target `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE` and its `main` branch, or its
+current default branch if changed.
 Read `docs/agents/pr.md` for PR writing rules and use
 `.github/pull_request_template.md` as the source of truth for the body structure.
 
