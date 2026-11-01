@@ -4,7 +4,7 @@
 
 텍스트·음성으로 감정을 기록하고, AI 질문과 대화로 생각을 정리하며, 축적된 기록에서 감정 패턴을 발견하도록 돕습니다. 대화 이후에는 감정에 맞는 말랑이와 터치·드래그·ASMR 인터랙션으로 감각적인 감정 환기를 연결합니다.
 
-서비스명은 미정이며, 현재는 기획과 Spring Boot 백엔드 구성을 준비하는 단계입니다. 아래 기능은 구현 예정입니다. 자세한 배경과 사용자 흐름은 [서비스 기획안](docs/service-overview.md)을 확인하세요.
+서비스명은 미정이며, 현재는 Spring Boot 백엔드 초기 구성을 완료하고 업무 기능 구현을 준비하는 단계입니다. 아래 기능은 구현 예정입니다. 자세한 배경과 사용자 흐름은 [서비스 기획안](docs/service-overview.md)을 확인하세요.
 
 <br />
 
@@ -22,9 +22,12 @@
 
 | 영역 | 기술 | 상태 |
 | :--- | :--- | :--- |
-| Backend Framework | Spring Boot | 도입 예정, 버전 미정 |
-| Language / JDK | 미정 | 프로젝트 초기 구성 시 결정 |
-| Data | 미정 | DB 및 데이터 접근 기술 선정 필요 |
+| Backend Framework | Spring Boot 4.1.2 / Spring MVC | 초기 구성 완료 |
+| Language / JDK | Java 21 | Gradle toolchain |
+| Build | Gradle 9.8.2 | Wrapper 제공 |
+| Data | MySQL 8.4 LTS / Spring Data JPA | 연결 설정 및 로컬 Compose 제공 |
+| API Documentation | springdoc 3.2.0 / Swagger UI | 로컬 활성화 |
+| LLM | | 미정 |
 | Security | 미정 | 인증·인가 요구사항에 따라 결정 |
 | Infrastructure | 미정 | 배포 환경 선정 필요 |
 | CI/CD | 미정 | 빌드·배포 방식 선정 필요 |
@@ -33,11 +36,12 @@
 
 ## 🗺️ 시스템 아키텍처 (System Architecture)
 
-아래는 구성 예정인 백엔드의 개념도입니다. 저장소에는 아직 실행 가능한 애플리케이션이 없습니다.
+아래는 초기 구성입니다. 업무 API와 LLM 연동은 미구현입니다.
 
 ```mermaid
 flowchart LR
-    Client[클라이언트] --> Backend[Spring Boot Backend · 구성 예정]
+    Client[클라이언트] --> Backend[Spring Boot 4.1 · Java 21]
+    Backend --> DB[(MySQL 8.4)]
 ```
 
 구성 요소와 통신 방식은 [시스템 아키텍처](docs/architecture.md)에 정리합니다.
@@ -64,13 +68,13 @@ flowchart LR
 
 ## 📑 API 명세서 (API Documentation)
 
-요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. 현재 확정되거나 구현된 API는 없습니다.
+요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. 업무 API는 아직 없으며, 로컬 실행 후 [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html)에서 추가되는 API를 확인할 수 있습니다.
 
 <br />
 
 ## 🔥 기술적 의사결정 및 트러블슈팅
 
-Spring Boot 도입 계획과 추후 기술 선택·문제 해결 기록은 [기술적 의사결정 및 트러블슈팅](docs/technical-decisions.md)에 정리합니다.
+채택한 기술과 추후 기술 선택·문제 해결 기록은 [기술적 의사결정 및 트러블슈팅](docs/technical-decisions.md)에 정리합니다.
 
 <br />
 
@@ -101,7 +105,16 @@ git clone https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE.git
 cd 2026_GANZITHON_TEAM_07_BE
 ```
 
-현재는 문서와 협업 설정만 포함되어 있습니다. Spring Boot 프로젝트 및 빌드 도구 구성 후 실행할 수 있습니다.
+JDK 21과 Docker Compose v2를 준비한 뒤 실행합니다.
+
+```bash
+cp .env.example .env
+# .env의 로컬 DB 비밀번호를 변경하세요.
+docker compose up -d --wait mysql
+./gradlew bootRun
+```
+
+빌드·테스트: `./gradlew clean test bootJar`. 기본 테스트는 H2를 사용하며, 실제 MySQL 연결 검증 방법은 아래 실행 가이드를 참고합니다.
 
 JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 실행 가이드](docs/getting-started.md)에 정리합니다. 기여 시에는 먼저 개인 포크를 준비하고 [협업 워크플로](docs/agents/workflow.md)의 원격 저장소 설정을 따릅니다.
 

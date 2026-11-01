@@ -4,7 +4,12 @@
 
 ## 현재 상태
 
-Spring Boot 프로젝트 구성 예정이며, 확정되거나 구현된 엔드포인트는 없습니다. Swagger / OpenAPI 도입 여부와 명세서 URL도 미정입니다.
+Spring Boot와 springdoc 구성을 추가했습니다. 아직 업무 엔드포인트는 없습니다. `.env`에서 `API_DOCS_ENABLED=true`로 설정하면 아래 문서 경로가 활성화됩니다.
+
+- Swagger UI: `http://127.0.0.1:8080/swagger-ui/index.html`
+- OpenAPI JSON: `http://127.0.0.1:8080/v3/api-docs`
+
+문서 경로는 로컬에서 인증 없이 접근하며 기본 설정은 비활성화입니다. 인증과 업무 API 계약은 기능 구현 시 결정합니다.
 
 ## 기획에서 도출한 API 검토 범위
 
@@ -24,7 +29,7 @@ Spring Boot 프로젝트 구성 예정이며, 확정되거나 구현된 엔드�
 
 | 항목 | 상태 |
 | :--- | :--- |
-| 로컬 / 배포 Base URL | 미정 |
+| 로컬 / 배포 Base URL | 로컬 `http://127.0.0.1:8080` / 배포 미정 |
 | API 경로 및 버전 정책 | 미정 |
 | 요청·응답 Content-Type | 미정 |
 | 인증 방식 및 권한 | 미정 |
