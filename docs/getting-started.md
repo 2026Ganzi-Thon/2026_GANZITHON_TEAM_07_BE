@@ -17,6 +17,10 @@ cd 2026_GANZITHON_TEAM_07_BE
 
 코드를 기여할 때는 GitHub에서 개인 포크를 만든 뒤 해당 포크를 `origin`, 팀 저장소를 `upstream`으로 설정합니다. [협업 워크플로](agents/workflow.md)에 따라 작업 브랜치와 worktree를 만들고 PR을 보냅니다.
 
+VS Code는 공유 설정으로 로컬 worktree를 자동 탐지하고 원격 변경을 주기적으로
+fetch합니다. 폴더 열기와 최초 push 설정은 [VS Code 협업 가이드](vscode.md)를
+따릅니다. 자동 fetch는 파일의 자동 pull·merge를 의미하지 않습니다.
+
 ## 프로젝트 초기 구성 시 확정할 항목
 
 | 항목 | 상태 |

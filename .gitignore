@@ -1,2 +1,47 @@
 # Local Git worktrees; each has its own branch and index.
 /.worktrees/
+
+# Java and build outputs (keep Gradle/Maven Wrapper files tracked).
+.gradle/
+/build/
+/target/
+/out/
+*.class
+*.hprof
+
+# Local IDE settings.
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+.classpath
+.project
+.settings/
+.factorypath
+/bin/
+
+# Local environment files; keep credential-free examples and templates.
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.template
+!.env.*.template
+
+# Logs, temporary files, and editor backups.
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# macOS and Windows metadata.
+.DS_Store
+._*
+.AppleDouble/
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
