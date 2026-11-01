@@ -37,7 +37,7 @@
 
 ## 🗺️ 시스템 아키텍처 (System Architecture)
 
-아래는 초기 구성입니다. 업무 API와 LLM 연동은 미구현입니다.
+아래는 초기 구성입니다. 기능별 헥사고날 구조와 health API를 제공하며 감정 탐색 업무 API·LLM 연동은 미구현입니다.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ flowchart LR
     Backend --> DB[(MySQL 8.4)]
 ```
 
-단일 Gradle 모듈에서 기능별 헥사고날 구조를 사용합니다. 의존 규칙은 [ADR-0002](docs/adr/0002-feature-hexagonal-architecture.md)에 기록하며 health API는 별도 후속 작업으로 진행합니다.
+단일 Gradle 모듈에서 기능별 `domain / application / adapter` 구조를 사용하고 어댑터가 안쪽 application 포트에 의존하도록 구성합니다. 실제 도메인·출력 어댑터는 기능 구현 시 추가합니다.
 
 구성 요소와 통신 방식은 [시스템 아키텍처](docs/architecture.md)에 정리합니다.
 
@@ -71,7 +71,7 @@ flowchart LR
 
 ## 📑 API 명세서 (API Documentation)
 
-요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. 업무 API는 아직 없으며, 로컬 실행 후 [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html)에서 추가되는 API를 확인할 수 있습니다.
+요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. 서버 확인용 `GET /api/v1/health`가 `{"status":"UP"}`을 반환합니다. 감정 탐색 업무 API는 아직 없으며, 로컬 실행 후 [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html)에서 추가되는 API를 확인할 수 있습니다.
 
 <br />
 
