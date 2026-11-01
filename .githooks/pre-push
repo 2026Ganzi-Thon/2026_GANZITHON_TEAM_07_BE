@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+deny() {
+    printf '%s\n' "Push blocked: $1" >&2
+    printf '%s\n' 'Use a task branch, push to your personal fork (origin), then open a team PR.' >&2
+    exit 1
+}
+
+[ "${1-}" = origin ] || deny 'Only the personal fork remote origin is allowed.'
+origin_url=$(git remote get-url --push --all origin) || deny 'Cannot resolve origin.'
+[ "${2-}" = "$origin_url" ] || deny 'Push URL does not match the single origin push URL.'
+
+url=$(printf '%s' "$origin_url" | LC_ALL=C tr '[:upper:]' '[:lower:]')
+case "$url" in
+    https://github.com/*) repo_path=${url#https://github.com/} ;;
+    git@github.com:*) repo_path=${url#git@github.com:} ;;
+    ssh://git@github.com/*) repo_path=${url#ssh://git@github.com/} ;;
+    *) deny 'Origin must be a GitHub personal fork using HTTPS or SSH.' ;;
+esac
+repo_path=${repo_path%/}
+repo_path=${repo_path%.git}
+owner=${repo_path%%/*}
+repo=${repo_path#*/}
+[ -n "$owner" ] || deny 'Missing fork owner.'
+[ "$owner" != 2026ganzi-thon ] || deny 'Direct pushes to the team repository are forbidden.'
+[ "$repo" = 2026_ganzithon_team_07_be ] || deny 'Origin must point to a personal fork of this repository.'
+
+current_branch=$(git symbolic-ref --quiet --short HEAD) || deny 'Check out a task branch before pushing.'
+[ "$current_branch" != main ] || deny 'Pushing from main is forbidden.'
+
+while read -r local_ref local_oid remote_ref remote_oid; do
+    case "$local_ref" in
+        refs/heads/main) deny 'Pushing main is forbidden.' ;;
+        refs/heads/*) ;;
+        *) deny 'Only task branches may be pushed.' ;;
+    esac
+    case "$remote_ref" in
+        refs/heads/main) deny 'Updating remote main is forbidden.' ;;
+        refs/heads/*) ;;
+        *) deny 'Only remote task branches may be updated.' ;;
+    esac
+done

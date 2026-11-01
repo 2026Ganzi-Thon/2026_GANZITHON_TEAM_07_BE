@@ -1,0 +1,11 @@
+
+# <type>(<scope>): <summary>
+# Example: feat(auth): 로그인 API 추가
+# Types: feat, fix, refactor, docs, test, chore, build, ci, perf, revert
+# Scope is optional. Describe one logical change in the subject.
+# Use Korean prose; preserve code identifiers in their original form.
+#
+# Optional body: explain why the change is needed and notable tradeoffs.
+#
+# Optional footer: Refs #123
+# Breaking change: BREAKING CHANGE: <migration or compatibility impact>
