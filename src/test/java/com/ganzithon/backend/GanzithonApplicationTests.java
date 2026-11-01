@@ -28,7 +28,15 @@ class GanzithonApplicationTests {
     void servesOpenApiDocument() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.info.title").value("GANZITHON TEAM 07 API"));
+                .andExpect(jsonPath("$.info.title").value("GANZITHON TEAM 07 API"))
+                .andExpect(jsonPath("$.paths['/api/v1/health'].get.responses['200']").exists());
+    }
+
+    @Test
+    void servesHealthThroughApplicationWiring() throws Exception {
+        mockMvc.perform(get("/api/v1/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
     }
 
     @Test

@@ -2,30 +2,61 @@
 
 [README로 돌아가기](../README.md)
 
-단일 Gradle 모듈에서 기능별 헥사고날 구조를 사용합니다. 선택 이유는
-[ADR-0002](adr/0002-feature-hexagonal-architecture.md)에 기록합니다.
+## 구성
 
-## 기능별 패키지 규칙
+단일 Gradle 모듈에서 기능별 헥사고날 구조를 사용합니다. [ADR-0002](adr/0002-feature-hexagonal-architecture.md)에 선택 이유를 기록합니다.
 
-각 기능 안에서 필요한 `domain`, `application.port.in`, `application.service`,
-`application.port.out`, `adapter.in`, `adapter.out`을 구성합니다.
+```mermaid
+flowchart LR
+    Client[클라이언트] --> Web[health.adapter.in.web]
+    Web --> Port[health.application.port.in]
+    Service[health.application.service] -. 구현 .-> Port
+    Config[config · Spring 조립] -. 생성 .-> Service
+```
 
-- domain: 업무 규칙. application과 외부 기술에 의존하지 않습니다.
-- application: 유스케이스와 입출력 포트. 외부 어댑터·Spring·JPA·직접 JDBC에 의존하지 않습니다.
-- adapter.in: 입력 변환. 서비스 구현체 대신 입력 포트를 호출합니다.
-- adapter.out: DB·LLM 등 외부 연동으로 출력 포트를 구현합니다.
-- config: Spring bean과 포트 구현을 바깥에서 조립합니다.
+## 패키지와 책임
 
-업무 규칙·외부 호출이 생길 때 필요한 패키지와 타입을 추가합니다. 아직 없는
-기능을 위한 가상 도메인 객체나 출력 포트는 만들지 않습니다. 현재 업무 API는
-없으며 health API는 별도 후속 작업입니다.
+루트 패키지는 `com.ganzithon.backend`입니다.
 
-## 검증
+```text
+backend/
+├── GanzithonApplication.java
+├── config/                         # Spring bean 조립, OpenAPI 설정
+└── health/
+    ├── adapter/in/web/              # HTTP 요청·응답과 Swagger 명세
+    └── application/
+        ├── port/in/                 # CheckHealthUseCase, HealthStatus
+        └── service/                 # 프레임워크에 의존하지 않는 구현
+```
 
-ArchUnit으로 안쪽 코드의 외부 기술 의존과 입력 어댑터의 서비스 직접 의존을
-검사합니다. 기능을 추가하기 전에는 빈 패키지를 허용하며 이후 자동 적용됩니다.
-외부 기술에 의존하는 테스트 fixture를 탐지하는 검사도 제공합니다.
+향후 업무 기능은 같은 기능 패키지 안에 필요한 `domain`, `application.port.out`,
+`adapter.out`을 추가합니다. health에는 업무 도메인 규칙과 외부 호출이 없으므로
+가상 도메인 객체, 출력 포트, DB·LLM 어댑터는 만들지 않습니다.
 
-현재 Spring MVC·JPA/MySQL 8.4·Swagger 연결 설정을 유지합니다. LLM, 엔티티,
-인증 및 배포는 미정입니다. 실행은 [실행 가이드](getting-started.md), API는
-[API 명세](api.md)를 참고합니다.
+| 영역 | 책임과 의존 규칙 |
+| --- | --- |
+| `domain` | 업무 규칙. application·adapter·Spring·JPA·직접 JDBC에 의존하지 않음 |
+| `application.port.in` | 입력 유스케이스와 그 결과 계약 |
+| `application.service` | 입력 포트 구현. 필요한 도메인·출력 포트 사용, 외부 기술 의존 없음 |
+| `application.port.out` | 외부 저장·조회·모델 호출이 필요할 때 내부에서 정의 |
+| `adapter.in` | HTTP 등 외부 입력 변환. 서비스 구현체 대신 입력 포트에 의존 |
+| `adapter.out` | 실제 DB·LLM 등 출력 포트 구현. 기능 구현 시 추가 |
+| `config` | 바깥에서 Spring 의존성을 사용해 포트와 구현을 조립 |
+
+`HexagonalArchitectureTests`가 application·domain의 외부 기술 의존, domain의
+application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검사합니다. 실제 기능을 추가하기 전에는 빈 패키지를 허용합니다. 잘못된 외부 의존을 탐지하는 fixture 검사도 제공합니다.
+
+## 현재 기능 및 외부 연동
+
+- `GET /api/v1/health`: 인증 없이 서버의 HTTP 응답 확인, DB·LLM 조회 없음
+- MySQL 8.4 / JPA: 기존 연결 설정 유지. 아직 엔티티·테이블 없음
+- Swagger UI와 OpenAPI: 기존 경로 유지, 기본 비활성화·로컬 활성화
+- LLM, 인증, 배포 환경: 미정
+
+앱 API는 컨트롤러에서 `/api/v1` 경로를 사용합니다. servlet context path를
+전역으로 설정하지 않아 Swagger UI와 `/v3/api-docs`는 이동하지 않습니다.
+현재 JPA 자동 구성상 앱 기동에는 DB가 필요합니다. health의 UP은 DB·LLM까지
+정상이라는 의미의 readiness가 아닙니다.
+
+상세 응답은 [API 명세](api.md), 실행은 [실행 가이드](getting-started.md),
+데이터 상태는 [DB 설계](database.md)를 참고합니다.
