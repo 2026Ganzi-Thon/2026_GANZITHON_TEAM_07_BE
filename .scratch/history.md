@@ -28,7 +28,7 @@
 
 ## 남아 있는 작업
 
-- MySQL 8.4 Compose 기동 및 JDBC 연결 검증: [기반 작업 이슈](backend-bootstrap/issues/01-bootstrap.md)
+- 로컬 MySQL 8.4 Compose 기동 확인 (JDBC 연결은 후속 CI에서 통과): [기반 작업 이슈](backend-bootstrap/issues/01-bootstrap.md)
 - LLM 제공자·모델·비용·연동 방식, 질문 전략과 대화 정책 결정: [서비스 스펙](service/spec.md)
 - 업무 API·인증·저장 모델·MVP 범위 결정과 기능 구현
 - 팀 main 보호 설정은 관리자 작업 필요: [공유 저장소 전환](shared-repository-workflow/spec.md)
@@ -48,3 +48,5 @@ Git ignore 판정으로 OS 파일·Java 아카이브 등 27개 제외 대상과 
 팀 저장소를 origin으로 변경하고 같은 주소의 중복 upstream은 제거했습니다. main은 origin/main을 추적하며 push 기본값은 origin/simple입니다. 기존 커밋·브랜치·stash는 보존했습니다. 기본 폴더의 새 작업 브랜치 `chore/shared-repository-workflow`에서 훅·문서·CI를 변경하며 main 직접 push나 PR merge는 수행하지 않습니다.
 
 훅은 팀 작업 브랜치만 허용하는 규칙으로 바꾸고 실제 Git 환경에서 회귀 검사를 추가했습니다. CI는 Java 21·MySQL 8.4와 훅 검사를 실행합니다. 현재 계정은 WRITE 권한이며 main 서버 보호 설정은 꺼져 있어 관리자 설정 절차를 별도로 문서화했습니다. 검증과 최종 결과는 [전환 검증 기록](shared-repository-workflow/verification.md)에 남깁니다.
+
+공유 저장소 작업 브랜치 push와 PR #5 생성이 성공했고, 구현 커밋의 GitHub Actions에서 훅 9개·Java 21·MySQL 8.4 검증을 통과했습니다. 원격 main은 변경하지 않았습니다.

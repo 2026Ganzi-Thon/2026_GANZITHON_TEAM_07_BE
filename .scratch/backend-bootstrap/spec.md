@@ -60,8 +60,9 @@ docker compose up -d --wait mysql
 - [x] 실제 MySQL JDBC 연결과 `SELECT 1` — 임시 MySQL 9.4 사용
 - [x] 실행 JAR의 `.env` 로딩과 실제 HTTP 응답
 - [x] 관련 문서 동기화 및 형식·링크 확인
-- [ ] Compose MySQL 8.4 기동 및 같은 버전의 연결 검증 — Docker 미설치로 미검증
+- [x] MySQL 8.4 연결 검증 — 후속 공유 저장소 CI에서 확인
+- [ ] 로컬 Compose 기동 — 로컬 Docker 미설치로 미검증
 
 검증 상세: [verification.md](verification.md). 남은 작업: [이슈 01](issues/01-bootstrap.md).
 
-구현 커밋: `30df747`. 관련 [PR #4](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/pull/4)는 2026-11-01 조회 시 OPEN이며 merge하지 않았습니다.
+구현 커밋: `30df747`. 관련 [PR #4](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/pull/4)는 처음 조회 시 OPEN이었고 이후 팀 main의 merge 커밋 `6d4e354`로 반영됐습니다. agent는 원격 PR merge를 실행하지 않았습니다.

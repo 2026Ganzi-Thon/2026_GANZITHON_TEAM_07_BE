@@ -40,3 +40,7 @@ RUN_MYSQL_TESTS=true ./gradlew clean test bootJar
 - LLM, 업무 API, 배포, 인증은 구현하지 않아 해당 검증 없음
 
 DB 비밀번호, API 키, 원본 환경 파일은 이 기록에 포함하지 않습니다.
+
+## 후속 CI 검증
+
+공유 저장소 전환 [CI](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/actions/runs/41316312030)에서 Java 21.0.13·MySQL 8.4.13으로 전체 테스트와 JAR 빌드를 성공했습니다. MySQL 8.4 JDBC 연결의 미검증 항목은 해소됐으며 로컬 Compose 자체 실행은 별도 확인 대상입니다.

@@ -89,3 +89,5 @@ DB 데이터는 `mysql-data` 볼륨에 유지됩니다. `.env`의 DB 이름·사
 ## 초기 구성 검증 기록 · 2026-11-01
 
 Temurin Java 21.0.13에서 `clean test bootJar`를 실행해 테스트 6개가 통과했습니다. MySQL 연결 테스트는 설치된 MySQL 9.4의 별도 임시 DB로 실행했고, 실행 JAR이 `.env`를 읽어 DB에 연결한 뒤 Swagger UI와 OpenAPI를 HTTP 200으로 반환하는 것도 확인했습니다. Docker가 없는 환경이라 Compose의 MySQL 8.4 기동은 검증하지 못했습니다.
+
+후속 [공유 저장소 CI](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/actions/runs/41316312030)에서는 Java 21.0.13·MySQL 8.4.13 연결을 포함한 테스트와 JAR 빌드가 통과했습니다. 로컬 Compose 실행은 별도 확인 대상입니다.

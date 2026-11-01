@@ -17,7 +17,8 @@
 
 Always create a task branch, push it to the shared team repository (`origin`),
 and open a PR targeting its `main`. Keep local `main` aligned with `origin/main`;
-unmerged work stays on task branches. Never push directly to `main`. Never bypass the pre-push hook with `--no-verify` or disabled hooks.
+unmerged work stays on task branches. Never push directly to `main`. Never bypass
+the pre-push hook with `--no-verify` or disabled hooks.
 
 Before writing or updating a PR, read `docs/agents/pr.md` and use
 `.github/pull_request_template.md` for the body.

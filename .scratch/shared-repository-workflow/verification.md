@@ -15,4 +15,13 @@
 
 2026-11-01 조회한 사용자의 권한은 WRITE, main protected는 false입니다. 관리자 권한이 필요한 branch protection은 변경하지 않았습니다. 개인 Codex의 PR merge 차단도 유지했습니다.
 
-CI 실행과 게시 결과는 PR 생성 후 아래에 기록합니다.
+## 팀 저장소 게시 및 CI 결과
+
+- 팀 origin의 `chore/shared-repository-workflow` push가 새 훅을 정상 통과했습니다. 현재 추적은 `origin/chore/shared-repository-workflow`입니다.
+- 같은 팀 저장소의 [PR #5](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/pull/5)를 생성했습니다. main 직접 push나 PR merge는 하지 않았습니다.
+- [CI 실행 41316312030](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/actions/runs/41316312030)은 구현 커밋 `b26e278`에서 SUCCESS입니다.
+- Temurin Java 21.0.13, MySQL 8.4.13 서비스에서 `RUN_MYSQL_TESTS=true ./gradlew --no-daemon clean test bootJar`가 성공했습니다.
+- 실제 runner에서 훅 테스트 9개 통과, `BUILD SUCCESSFUL in 42s`를 확인했습니다.
+- 문서 로컬 링크, CI YAML 구문, `git diff --check`도 통과했습니다.
+
+로컬 Compose 자체의 실행은 이 CI 서비스 실행과 다르므로 아직 미검증입니다. main 서버 보호는 [관리자 작업](issues/01-protect-main.md)으로 남깁니다.
