@@ -1,5 +1,5 @@
-# Local work records.
-/.scratch/
+# Personal backup retained before bootstrap; work records in .scratch are tracked.
+/.scratch/preserved-before-bootstrap/
 
 # Optional Git worktrees; each has its own branch and index.
 /.worktrees/

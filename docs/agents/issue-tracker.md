@@ -1,6 +1,6 @@
 # Issue tracker: Local Markdown
 
-Issues and specs for this repo live as markdown files in `.scratch/`.
+Issues and specs for this repo live as Git-tracked Markdown files in `.scratch/`.
 
 ## Conventions
 
@@ -31,9 +31,13 @@ Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
 
 ## Local files and GitHub PRs
 
-`.scratch/` is ignored by Git. Keep temporary plans, specs, tickets, and notes
-there; share durable decisions through `GLOSSARY.md`, `docs/adr/`, and product
-docs. Publishing a ticket means creating a local Markdown file, not a GitHub issue.
+Track plans, specs, tickets, and work history in `.scratch/` through commits and
+PRs so the team can follow changes. Start at `.scratch/README.md`. Keep secrets,
+raw environment files, and personal settings out of these records. The existing
+`preserved-before-bootstrap/` directory is an ignored personal backup.
+Maintain accepted terminology in `GLOSSARY.md` and durable decisions in
+`docs/adr/` and product docs. Publishing a ticket means creating its Markdown
+file and sharing it through the normal Git/PR flow, not creating a GitHub issue.
 
 Code still follows task branch → personal fork (`origin`) → PR to
 `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`. Follow `workflow.md` and `pr.md`.

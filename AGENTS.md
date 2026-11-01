@@ -26,7 +26,7 @@ Before writing or updating a PR, read `docs/agents/pr.md` and use
 
 ### Issue tracker
 
-Track issues locally in `.scratch/<feature>/`.
+Track issues as Git-tracked Markdown in `.scratch/<feature>/`.
 Read `docs/agents/issue-tracker.md` before issue operations.
 
 ### Triage labels

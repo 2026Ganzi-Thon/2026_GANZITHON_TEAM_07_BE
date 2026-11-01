@@ -7,7 +7,7 @@ Continue the current task branch when it matches the request. Preserve unrelated
 and uncommitted changes; stage only files belonging to the task.
 
 Before editing, inspect status, remotes, worktrees, and the relevant local ticket.
-Read `docs/agents/issue-tracker.md` for the `.scratch/` ticket layout.
+Read `docs/agents/issue-tracker.md` for the Git-tracked `.scratch/` ticket layout.
 This clone uses `origin` for the personal fork and `upstream` for the team repo.
 Verify URLs in each new clone. Publishing follows this route:
 task branch → personal fork (`origin`) → PR to the team repository (`upstream`).
@@ -41,7 +41,7 @@ choosing the working folder or troubleshooting synchronization.
 
 Use a worktree only when parallel work needs an isolated checkout. Otherwise,
 keep source edits in the main repository folder; `.scratch/` holds local work
-records, not another source checkout.
+records shared through Git and PRs, not another source checkout.
 
 ```sh
 mkdir -p .worktrees
