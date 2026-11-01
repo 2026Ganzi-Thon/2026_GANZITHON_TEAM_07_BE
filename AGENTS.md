@@ -6,8 +6,12 @@
    branch, commit, and GitHub PR conventions.
 2. Inspect `git status --short --branch`, `git remote -v`, and
    `git worktree list`. Preserve existing changes and identify the task's branch.
-3. Read the domain docs below, then implement and run checks appropriate to the
-   change. Report what changed, the checks actually run, and any remaining limits.
+3. Before planning or implementing features, fixing behavior, or changing project
+   setup, read `docs/agents/development.md`. Follow its document routing, scope,
+   specification, and completion rules. Read the domain docs below when exploring
+   domain concepts.
+4. Run checks appropriate to the change. Report what changed, the checks actually
+   run, and any remaining limits.
 
 ## Pull requests
 
