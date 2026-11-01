@@ -20,7 +20,7 @@ For a new task, run from the primary checkout:
 ```sh
 git fetch upstream
 mkdir -p .worktrees
-git worktree add -b feat/123-login .worktrees/feat-123-login upstream/main
+git -c branch.autoSetupMerge=false worktree add -b feat/123-login .worktrees/feat-123-login upstream/main
 cd .worktrees/feat-123-login
 ```
 
@@ -28,6 +28,12 @@ Replace the branch and directory with the task's values. Fetch and worktree
 creation must succeed before editing. If the team default branch changes, use
 that branch instead of `main`. Configure the fork/team remotes as above if an
 `upstream` remote is missing.
+
+The command disables automatic tracking of `upstream/main` for the new task
+branch. Its tracking branch is set by the first `git push -u origin <branch>`.
+Before using VS Code Sync, verify that the task branch tracks its matching
+`origin/<branch>`. Read `docs/vscode.md` when opening worktrees in VS Code or
+troubleshooting repository selection and synchronization.
 
 Branch format: `<type>/<issue-number>-<short-kebab-description>`.
 Without an issue, use `<type>/<short-kebab-description>`; an issue is not required
