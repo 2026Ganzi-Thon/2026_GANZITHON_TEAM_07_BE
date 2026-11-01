@@ -20,7 +20,17 @@
 
 ## 공유 경로
 
-작업 브랜치 → 개인 fork `origin` → 팀 저장소 PR. `main`과 팀 저장소에 직접 push하지 않으며 pre-push 훅을 유지합니다. 이슈 저장 위치 변경은 GitHub PR 흐름을 없애는 결정이 아닙니다.
+팀 저장소 하나를 `origin`으로 사용합니다. fork 없이 작업 브랜치를 팀 `origin`에
+push하고 같은 저장소의 `main`으로 PR을 만듭니다. 팀원은 쓰기 권한을 준비합니다.
+로컬 `main`은 `origin/main`과 맞추고 진행 중인 작업은 작업 브랜치에 유지합니다.
+
+pre-push 훅은 팀 작업 브랜치를 허용하고 로컬·원격 main, 태그, 삭제, 다른
+저장소 push를 차단합니다. PR에서 CI와 리뷰를 확인하고 merge한 뒤 main을
+pull로 갱신합니다. 상세 절차는 [협업 워크플로](../../docs/agents/workflow.md),
+기존 클론 정리는 [전환 가이드](../../docs/shared-repository-migration.md)를 따릅니다.
+
+기존 fork 방식은 과거 이력입니다. 이 변경은 이전의 개인 fork 필수 지침과
+팀 저장소 작업 브랜치 push 금지를 대체합니다.
 
 ## Codex 명령 허용 설정
 
@@ -28,8 +38,8 @@
 
 조회·PR 생성은 허용, `gh pr merge`는 금지 판정을 확인했습니다. 이는 개인 Codex의 명령 규칙이고 GitHub 웹의 권한·브랜치 보호 설정은 아닙니다. Git push의 별도 승인 규칙과 저장소 pre-push 훅은 유지했습니다. 개인 Codex 설정 파일은 저장소에 복사하지 않습니다.
 
-## 남아 있는 worktree
+## worktree 정리 이력
 
-기존 두 worktree는 브랜치 점유를 해제한 detached 상태입니다. 폴더가 존재해도 현재 브랜치를 점유하지 않습니다. README worktree의 `.gitignore` 수정은 원본을 로컬 백업에 보존한 뒤 현재 작업 브랜치로 반영합니다. 백엔드 초기 구성용 임시 worktree는 기본 폴더로 옮긴 뒤 제거했습니다.
+기존 worktree는 브랜치 점유 해제와 변경 보존을 확인한 뒤 모두 제거했습니다. 현재 기본 폴더 하나를 사용하며 worktree는 병렬 작업 시 선택 사항입니다. 과거 README worktree의 `.gitignore` 변경도 기본 브랜치에 반영했습니다.
 
 이 정보는 기록 당시 상태이며, 실제 작업 전에는 `git status`와 `git worktree list`로 다시 확인합니다.

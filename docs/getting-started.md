@@ -8,7 +8,7 @@
 - Docker Engine/Desktop + Docker Compose v2: 로컬 MySQL 실행에 사용합니다.
 - Spring Boot 4.1.2, Gradle 9.8.2, MySQL 8.4 LTS, springdoc 3.2.0을 사용합니다.
 
-개인 포크와 작업 브랜치 구성은 [협업 워크플로](agents/workflow.md), 편집기 설정은 [VS Code 협업 가이드](vscode.md)를 따릅니다.
+팀 저장소 클론과 작업 브랜치 구성은 [협업 워크플로](agents/workflow.md), 편집기 설정은 [VS Code 협업 가이드](vscode.md)를 따릅니다.
 
 ## 로컬 실행
 
@@ -66,6 +66,17 @@ RUN_MYSQL_TESTS=true ./gradlew test --tests '*MySqlConnectionTests' --rerun-task
 
 `RUN_MYSQL_TESTS`가 없으면 MySQL 테스트는 건너뜁니다. 실행 결과는 `build/reports/tests/test/index.html`에서 확인합니다.
 
+## PR 자동 검증
+
+GitHub Actions의 `CI / build-and-test`가 main 대상 PR과 main 갱신 시 실행됩니다.
+Java 21, MySQL 8.4 임시 서비스에서 전체 테스트·JAR 빌드와 push 훅 회귀 검사를
+수행합니다. CI용 DB 값은 해당 일회성 서비스 전용이며 운영 비밀값은 사용하지 않습니다.
+로컬 훅 검사는 Python 3으로 실행할 수 있습니다.
+
+```bash
+python3 scripts/test_pre_push.py
+```
+
 ## 중지 및 문제 확인
 
 ```bash
@@ -78,3 +89,5 @@ DB 데이터는 `mysql-data` 볼륨에 유지됩니다. `.env`의 DB 이름·사
 ## 초기 구성 검증 기록 · 2026-11-01
 
 Temurin Java 21.0.13에서 `clean test bootJar`를 실행해 테스트 6개가 통과했습니다. MySQL 연결 테스트는 설치된 MySQL 9.4의 별도 임시 DB로 실행했고, 실행 JAR이 `.env`를 읽어 DB에 연결한 뒤 Swagger UI와 OpenAPI를 HTTP 200으로 반환하는 것도 확인했습니다. Docker가 없는 환경이라 Compose의 MySQL 8.4 기동은 검증하지 못했습니다.
+
+후속 [공유 저장소 CI](https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE/actions/runs/41316312030)에서는 Java 21.0.13·MySQL 8.4.13 연결을 포함한 테스트와 JAR 빌드가 통과했습니다. 로컬 Compose 실행은 별도 확인 대상입니다.

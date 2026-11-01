@@ -1,5 +1,5 @@
 {
   "git.detectWorktrees": true,
-  "git.autofetch": "all",
+  "git.autofetch": true,
   "git.confirmSync": true
 }

@@ -8,8 +8,10 @@ Spring Boot, Java 21 toolchain, Gradle Wrapper, MySQL 연결과 Compose, JPA·Va
 
 ## 남은 확인
 
-Docker 사용 가능한 환경에서 `docker compose up -d --wait mysql`과 MySQL 8.4 연결 테스트 실행.
+Docker 사용 가능한 로컬 환경에서 `docker compose up -d --wait mysql`과 실행 설정을 확인합니다. MySQL 8.4 JDBC 연결과 전체 빌드는 공유 저장소 전환 CI에서 통과했습니다.
 
 ## Comments
 
 검증 환경에는 Docker가 없어 로컬 MySQL 9.4의 임시 DB로 연결을 확인했습니다.
+
+후속 검증: [공유 저장소 CI 기록](../../shared-repository-workflow/verification.md).

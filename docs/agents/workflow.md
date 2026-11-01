@@ -6,58 +6,54 @@ Use one task branch per independent task in the main repository folder.
 Continue the current task branch when it matches the request. Preserve unrelated
 and uncommitted changes; stage only files belonging to the task.
 
-Before editing, inspect status, remotes, worktrees, and the relevant local ticket.
-Read `docs/agents/issue-tracker.md` for the Git-tracked `.scratch/` ticket layout.
-This clone uses `origin` for the personal fork and `upstream` for the team repo.
-Verify URLs in each new clone. Publishing follows this route:
-task branch → personal fork (`origin`) → PR to the team repository (`upstream`).
-Never push `main`, including the fork's `main`, or push any branch directly to
-the team repository. If `origin` points to the team repo, configure a personal
-fork as `origin` and the team repo as `upstream` before publishing.
+Before editing, inspect status, remotes, worktrees, and the relevant ticket.
+Read `docs/agents/issue-tracker.md` for Git-tracked Markdown tickets in `.scratch/`.
+Use `origin` for the shared team repository:
+`https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE.git` (or its SSH URL).
+Each contributor needs team repository write access. Create work in a task branch,
+push that branch to `origin`, and open a PR into the team's `main`.
 
-For a new task, first preserve existing changes, then run:
+Keep local `main` aligned with `origin/main`. Unmerged work belongs on task
+branches. To start a new task after preserving any existing changes:
 
 ```sh
-git fetch upstream
-git -c branch.autoSetupMerge=false switch -c feat/123-login upstream/main
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git switch --no-track -c feat/login origin/main
 ```
 
-Fetch and branch creation must succeed before editing. If the team default
-branch changes, use that branch instead of `main`. Configure the fork/team
-remotes as above if an `upstream` remote is missing.
+If the fast-forward fails, preserve the local work in a named branch and inspect
+the divergence before changing `main`. Keep local-only commits on that branch.
+Do not reset away work or combine unmerged tasks into local `main`.
 
 Branch format: `<type>/<issue-number>-<short-kebab-description>`.
-Without a GitHub issue, use `<type>/<short-kebab-description>`, for example
-`build/backend-bootstrap`. Local ticket references use `.scratch/` paths;
-do not use their local numbers as GitHub issue references.
-Use the commit types below for branch prefixes too.
+For Markdown tickets use `<type>/<short-kebab-description>`, such as
+`feat/login`; reference `.scratch/` paths rather than treating local numbers as
+GitHub issue numbers. Use the commit types below as branch prefixes.
 
-The command disables automatic tracking of `upstream/main`. The first
-`git push -u origin <branch>` sets tracking to the personal fork. Before using
-VS Code Sync, verify tracking is `origin/<branch>`. Read `docs/vscode.md` when
-choosing the working folder or troubleshooting synchronization.
+The first `git push -u origin <branch>` sets the branch's tracking reference to
+`origin/<branch>`. Before VS Code Sync, verify that reference. Local `main` tracks
+`origin/main` and is updated by pull, not push. See `docs/vscode.md` for editor use.
 
 ### Optional worktrees
 
-Use a worktree only when parallel work needs an isolated checkout. Otherwise,
-keep source edits in the main repository folder; `.scratch/` holds local work
-records shared through Git and PRs, not another source checkout.
+Use a worktree only when parallel work needs an isolated checkout. By default,
+edit source in the main repository folder and keep shared work records in
+`.scratch/`. For an optional parallel checkout:
 
 ```sh
 mkdir -p .worktrees
-git -c branch.autoSetupMerge=false worktree add -b feat/parallel-task .worktrees/feat-parallel-task upstream/main
+git worktree add --no-track -b feat/parallel-task .worktrees/feat-parallel-task origin/main
 ```
 
-Worktrees share committed history and have separate files and indexes. A branch
-already checked out in one worktree cannot be checked out in another. Open its
-folder instead, or move the work after preserving changes and freeing the branch.
-Install dependencies separately and use distinct ports for parallel servers.
-Avoid recursive file searches through `.worktrees/` from the primary checkout.
-
-After a worktree is no longer needed and its changes are committed, remove it
-using `git worktree remove .worktrees/<directory>`. Never force removal to
-discard work. Use `git branch -d <branch>` only when Git confirms it is merged;
-retain it if squash merging prevents that check.
+Worktrees share committed history but have separate files and indexes. A branch
+can be checked out in only one worktree. Open that folder or preserve its work
+and release the branch before moving it. Install dependencies separately, use
+different server ports, and avoid recursive searches through `.worktrees/`.
+Remove an unused, clean worktree with `git worktree remove`; preserve all local
+files first. Delete merged branches with `git branch -d` only when Git confirms
+they are merged; retain branches when squash merging prevents that check.
 
 ## Commit conventions
 
@@ -100,53 +96,49 @@ still follow this convention. This is a team convention, not an installed hook.
 
 ## GitHub pull requests
 
-Track work locally as described in `docs/agents/issue-tracker.md`.
-Target `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE` and its `main` branch, or its
-current default branch if changed.
-Read `docs/agents/pr.md` for PR writing rules and use
-`.github/pull_request_template.md` as the source of truth for the body structure.
-
-For this fork-based clone, after committing the task and when publishing the
-branch/PR is part of the user's request:
+Read `docs/agents/pr.md` and use `.github/pull_request_template.md` before writing
+or updating a PR. Target `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`, base `main`.
+After committing and validating the task:
 
 ```sh
-git push -u origin feat/123-login
+git push -u origin feat/login
 gh pr create --repo 2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE \
-  --base main --head WooDDANG:feat/123-login \
+  --base main --head feat/login \
   --title 'feat(auth): 로그인 API 추가' --body-file /tmp/task-pr-body.md
 ```
 
-Replace example values and write the actual PR body to the file first. In
-another contributor's clone, use their fork owner instead of `WooDDANG`. In a
-new clone, set up that contributor's personal fork as `origin` first.
-Pass `--draft` if the published work is still incomplete. Report the PR URL and
-verification results once created. Merge according to the team's review process.
+Replace the example branch and write the exact body to a file first. Use a draft
+for incomplete work. Review the diff and CI checks before merging according to
+the team's process. Report the PR URL and validation results. After the team PR
+is merged, return to `main` and run `git pull --ff-only origin main`. Keep an
+unfinished branch available until the work is merged and local files are safe.
 
 ## Local push guard
 
-Enable the checked-in pre-push hook once per clone, from the primary checkout:
+Enable the tracked hook once per clone:
 
 ```sh
 chmod +x .githooks/pre-push
 git config --local core.hooksPath "$PWD/.githooks"
+git config --local remote.pushDefault origin
+git config --local push.default simple
 ```
 
-The absolute path lets linked worktrees use the same hook. Keep the primary
-checkout and hook file in place. The hook allows only task branch pushes to
-the configured personal fork `origin`; it blocks pushes from `main`, updates
-to remote `main`, tag/deletion pushes, and pushes to the team repo or another
-remote. It accepts GitHub HTTPS and SSH URLs for a personal repo with the same
-repository name, and rejects the team owner. Verify that `origin` is an actual
-fork when setting up a new clone.
+The hook permits task branch updates through the team `origin` only. It blocks
+local or remote `main`, tags, deletions, other remotes, unrelated repositories,
+and multiple push URLs. It supports the team's HTTPS and SSH URL forms.
+Validate it with `python3 scripts/test_pre_push.py` before changing its behavior.
+Use the hook normally; never bypass it with `--no-verify` or disabled hooks.
 
-Never bypass this guard with `--no-verify` or by changing hook configuration.
-Local hooks do not configure GitHub branch protection and can be bypassed by
-other clients; team-wide enforcement requires GitHub repository rules.
+The hook is local and must be installed in each clone. Server-side protection
+requires a repository administrator to protect `main`, require PR review and
+passing `CI / build-and-test` checks, and block force pushes and deletions.
+The checked-in workflow adds that CI check; it does not change GitHub protection
+settings by itself.
 
 ## Validation
 
-Discover build and test commands from the checked-in project configuration.
-For documentation-only changes, inspect the diff, links, and `git diff --check`.
-When no build or test configuration exists, state that rather than inventing a
-passing test result. Never include credentials or local environment files in a
-commit or PR.
+Run checks appropriate to the modified files. CI runs the push guard tests,
+Java 21 build and tests, and MySQL 8.4 integration tests. For documentation-only
+changes, inspect links and run `git diff --check`. Keep secrets and environment
+files out of commits and work records.

@@ -39,8 +39,8 @@ Maintain accepted terminology in `GLOSSARY.md` and durable decisions in
 `docs/adr/` and product docs. Publishing a ticket means creating its Markdown
 file and sharing it through the normal Git/PR flow, not creating a GitHub issue.
 
-Code still follows task branch → personal fork (`origin`) → PR to
-`2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`. Follow `workflow.md` and `pr.md`.
+Code follows task branch → shared team repository (`origin`) → PR into its
+`main` in `2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE`. Follow `workflow.md` and `pr.md`.
 Local ticket numbers are not GitHub issue numbers; in a PR's Related Issues
 section, use `없음` when there is no GitHub issue and describe any local work
 context directly in the PR.
