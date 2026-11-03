@@ -60,3 +60,7 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 
 상세 응답은 [API 명세](api.md), 실행은 [실행 가이드](getting-started.md),
 데이터 상태는 [DB 설계](database.md)를 참고합니다.
+
+## AI 감정 대화 설계 검토
+
+F-02의 질문 전략 선택과 BE 제어 책임은 [설계안](emotional-dialogue/design.md)에서 검토합니다. [감정 대화 문서](emotional-dialogue/README.md)에 질문 전략의 조사 근거와 평가 설계도 모읍니다. 기존 기능별 헥사고날 구조를 전제로 하되, 아직 업무 패키지·LLM 연동·저장 구조를 구현하거나 새 아키텍처 결정을 채택한 것은 아닙니다.
