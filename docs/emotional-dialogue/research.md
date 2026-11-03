@@ -1,6 +1,6 @@
 # AI 감정 대화의 질문 전략과 실행 구조 조사
 
-[README로 돌아가기](../README.md) · [AI 대화 설계안](ai-dialogue-design.md)
+[감정 대화 문서](README.md) · [AI 대화 설계안](design.md) · [평가 설계안](evaluation.md)
 
 조사일: 2026-11-03. 관련 기능: F-02, 연계 기능 F-01·F-03·F-07~F-09.
 
