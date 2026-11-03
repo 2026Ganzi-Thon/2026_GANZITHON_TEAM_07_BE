@@ -1,5 +1,7 @@
 # AI 감정 대화 제어 설계안
 
+[README로 돌아가기](../README.md) · [기능 명세서](features.md) · [조사 근거](ai-dialogue-research.md)
+
 상태: 제안, 미구현 · 2026-11-03 · 관련 기능: F-01~F-03, 향후 F-07~F-09
 
 ## 목적과 범위

@@ -129,6 +129,8 @@ JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 
 | :--- | :--- |
 | [서비스 기획안](docs/service-overview.md) | 서비스 배경, 목표, 타겟, 사용자 흐름 |
 | [기능 명세서](docs/features.md) | 기능별 요구사항, 처리 규칙, 완료 조건 |
+| [AI 감정 대화 설계안](docs/ai-dialogue-design.md) | BE·AI 역할, 질문 전략, 대화 흐름과 검증 방안 |
+| [AI 대화 조사 근거](docs/ai-dialogue-research.md) | 소크라테스식 질문·CBT·SFBT와 에이전트 설계 참고 자료 |
 | [API 명세서](docs/api.md) | 엔드포인트, 요청·응답, 인증, 오류 |
 | [시스템 아키텍처](docs/architecture.md) | 시스템 구성과 통신 흐름 |
 | [데이터베이스 설계 및 ERD](docs/database.md) | 테이블, 관계, 제약조건 |
