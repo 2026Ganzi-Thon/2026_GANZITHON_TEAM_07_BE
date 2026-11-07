@@ -44,6 +44,7 @@
 | **시스템** | GET | `/api/v1/health` | 서버 헬스체크 | X | 기반 인프라 |
 | **인증** | POST | `/api/v1/auth/signup` | 이메일 회원가입 | X | F-00 |
 | **인증** | POST | `/api/v1/auth/login` | 로그인 및 Access/Refresh 토큰 발급 | X | F-00 |
+| **인증** | POST | `/api/v1/auth/oauth/{provider}` | 소셜 로그인 (카카오, 디스코드, 구글) | X | F-00 |
 | **인증** | POST | `/api/v1/auth/refresh` | Refresh Token 기반 Access/Refresh 토큰 갱신 | X | F-00 |
 | **인증** | POST | `/api/v1/auth/logout` | 로그아웃 및 Refresh Token 폐기 | O | F-00 |
 | **인증** | GET | `/api/v1/auth/me` | 내 프로필 정보 조회 | O | F-00 |
@@ -122,6 +123,56 @@
     "nickname": "슬랑이친구"
   },
   "error": null
+}
+```
+
+#### [POST] `/api/v1/auth/oauth/{provider}` — 소셜 로그인 (카카오, 디스코드, 구글)
+- **인증:** 없음
+- **Path Parameter:** `provider` (`kakao`, `discord`, `google`)
+- **Request Body:**
+```json
+{
+  "authorizationCode": "4/0AY0e-g7...",
+  "redirectUri": "http://localhost:3000/oauth/callback/kakao"
+}
+```
+- **처리 규칙:**
+  1. 백엔드가 해당 공급자(OAuth2 Provider)의 토큰/프로필 엔드포인트와 통신하여 `providerId`, `email`, `nickname`을 획득합니다.
+  2. **동일 이메일 가입 거부 정책:** DB에 이미 동일한 이메일을 가진 계정이 존재하고 공급자가 일치하지 않는 경우, 가입을 거부하고 기존 가입된 공급자(`existingProvider`)로 로그인하도록 안내합니다 (HTTP 409 Conflict).
+  3. **신규 가입 (JIT):** 동일 이메일이 없는 경우 즉시 회원 레코드를 생성하고, 기본 말랑이(`SLANGI`, 슬랑이)를 자동 해금(`is_unlocked = true`, `is_selected = true`) 등록한 뒤 서비스 JWT 쌍을 발급합니다 (`isNewUser: true`).
+  4. **기존 가입:** 이미 해당 소셜로 가입된 회원이면 즉시 로그인 처리 후 JWT 쌍을 발급합니다 (`isNewUser: false`).
+
+- **성공 응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "userId": 2,
+    "email": "user@kakao.com",
+    "nickname": "카카오친구",
+    "provider": "KAKAO",
+    "isNewUser": true
+  },
+  "error": null
+}
+```
+
+- **실패 응답 — 동일 이메일이 이미 존재하는 경우 (HTTP 409 Conflict):**
+```json
+{
+  "success": false,
+  "data": {
+    "existingProvider": "LOCAL",
+    "registeredEmail": "user@example.com"
+  },
+  "error": {
+    "code": "EMAIL_ALREADY_REGISTERED",
+    "message": "이미 해당 이메일로 가입된 계정이 있습니다. LOCAL 계정으로 로그인해 주세요."
+  }
 }
 ```
 
