@@ -37,6 +37,8 @@
 *.swp
 *.swo
 *~
+__pycache__/
+*.py[cod]
 
 # Windows thumbnail cache files
 Thumbs.db
