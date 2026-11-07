@@ -51,7 +51,10 @@
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
 | **마음 기록함** | DELETE| `/api/v1/records/{resultId}` | 상담 기록 및 연관 세션 삭제 | O | F-08 |
-| **말랑이** | POST | `/api/v1/malangi/usages` | 말랑이 인터랙션 이력 저장 | O | F-05 |
+| **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
+| **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/select` | 메인 화면 대표 말랑이 변경 | O | F-05 |
+| **말랑이** | POST | `/api/v1/malangi/interactions` | 말랑이 인터랙션 시계열 로그 저장 (언제, 얼마 동안, 몇 번 만졌는지) | O | F-05, F-06 |
+| **말랑이** | GET | `/api/v1/malangi/interactions` | 최근 말랑이 조작 로그 조회 (타임스탬프 이력) | O | F-05 |
 
 ---
 
@@ -325,16 +328,73 @@
 
 ---
 
-### 3-5. 말랑이 인터랙션 기록 (F-05)
+### 3-5. 말랑이 인벤토리 및 인터랙션 시계열 로깅 (F-04, F-05, F-06)
 
-#### [POST] `/api/v1/malangi/usages` — 말랑이 이용 이력 저장
+#### [GET] `/api/v1/malangis` — 보유 말랑이 목록 및 선택 상태 조회
+- **인증:** 필요 (`Bearer <token>`)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "malangis": [
+      {
+        "malangiType": "SLANGI",
+        "name": "슬랑이",
+        "isUnlocked": true,
+        "isSelected": true,
+        "totalPlayTime": 450,
+        "lastInteractedAt": "2026-11-07T22:15:30"
+      },
+      {
+        "malangiType": "SQUISHY",
+        "name": "스퀴시",
+        "isUnlocked": true,
+        "isSelected": false,
+        "totalPlayTime": 180,
+        "lastInteractedAt": "2026-11-07T20:45:00"
+      },
+      {
+        "malangiType": "WAKPPU",
+        "name": "왁뿌볼",
+        "isUnlocked": false,
+        "isSelected": false,
+        "totalPlayTime": 0,
+        "lastInteractedAt": null
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+#### [PATCH] `/api/v1/malangis/{malangiType}/select` — 대표 말랑이 변경
+- **인증:** 필요 (`Bearer <token>`)
+- **Path Parameter:** `malangiType` (`SLANGI`, `SQUISHY`, `WAKPPU`)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "selectedMalangiType": "SQUISHY",
+    "updatedAt": "2026-11-07T22:20:00"
+  },
+  "error": null
+}
+```
+
+#### [POST] `/api/v1/malangi/interactions` — 말랑이 조작 시계열 로그 저장 (언제 만졌는지 로깅)
 - **인증:** 필요 (`Bearer <token>`)
 - **Request Body:**
 ```json
 {
   "sessionId": 501,
   "malangiType": "SQUISHY",
-  "durationSeconds": 120
+  "contextType": "AFTER_COUNSELING",
+  "startedAt": "2026-11-07T20:38:10",
+  "endedAt": "2026-11-07T20:40:10",
+  "durationSeconds": 120,
+  "interactionCount": 35
 }
 ```
 - **응답 (HTTP 201 Created):**
@@ -342,10 +402,38 @@
 {
   "success": true,
   "data": {
-    "usageId": 45,
+    "logId": 1024,
     "malangiType": "SQUISHY",
+    "startedAt": "2026-11-07T20:38:10",
+    "endedAt": "2026-11-07T20:40:10",
     "durationSeconds": 120,
-    "savedAt": "2026-11-07T20:45:00"
+    "interactionCount": 35,
+    "totalPlayTime": 300
+  },
+  "error": null
+}
+```
+
+#### [GET] `/api/v1/malangi/interactions` — 최근 말랑이 조작 이력 조회
+- **인증:** 필요 (`Bearer <token>`)
+- **Query Parameters:**
+  - `limit`: 조회할 로그 개수 (기본값: 10)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "logs": [
+      {
+        "logId": 1024,
+        "malangiType": "SQUISHY",
+        "contextType": "AFTER_COUNSELING",
+        "startedAt": "2026-11-07T20:38:10",
+        "endedAt": "2026-11-07T20:40:10",
+        "durationSeconds": 120,
+        "interactionCount": 35
+      }
+    ]
   },
   "error": null
 }
