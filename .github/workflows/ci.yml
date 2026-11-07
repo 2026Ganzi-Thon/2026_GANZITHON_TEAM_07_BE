@@ -47,6 +47,8 @@ jobs:
       - name: Build and test with MySQL 8.4
         env:
           RUN_MYSQL_TESTS: 'true'
+          # Dedicated test-only key; this context loads the JWT configuration.
+          AUTH_JWT_SECRET: c2VjcmV0LXRlc3Qta2V5LXRlc3Qta2V5LXRlc3Qta2V5
           DB_HOST: 127.0.0.1
           DB_PORT: '3306'
           DB_NAME: ganzithon

@@ -123,16 +123,22 @@ erDiagram
 
 ### 3-1. `users` (회원 테이블)
 
+- **목적:** 로컬 및 소셜(카카오, 디스코드, 구글) 계정 정보 및 인증 식별자 관리
+- **관련 기능:** F-00 (사용자 인증 및 관리)
+
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 회원 고유 번호 |
-| `email` | VARCHAR(255) | N | UNIQUE | — | 계정 이메일 |
+| `email` | VARCHAR(255) | N | UNIQUE | — | 계정 이메일 (플랫폼 간 중복 가입 방지) |
 | `password_hash` | VARCHAR(255) | Y | — | NULL | 암호화된 비밀번호 (소셜 로그인 시 NULL) |
-| `nickname` | VARCHAR(50) | N | — | — | 사용자 표시 닉네임 |
-| `provider` | VARCHAR(20) | N | — | 'LOCAL' | 가입 경로 (`LOCAL`, `GOOGLE`, `KAKAO` 등) |
-| `provider_id` | VARCHAR(255) | Y | — | NULL | 소셜 공급자 측 고유 ID |
+| `nickname` | VARCHAR(50) | N | — | — | 사용자 표시 닉네임 (소셜 프로필 기본값 활용) |
+| `provider` | VARCHAR(20) | N | — | 'LOCAL' | 가입 경로 (`LOCAL`, `KAKAO`, `DISCORD`, `GOOGLE`) |
+| `provider_id` | VARCHAR(255) | Y | — | NULL | 소셜 공급자 측 고유 ID (로컬 가입 시 NULL) |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 가입 일시 |
 | `updated_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 수정 일시 |
+
+- **복합 유니크 제약:** `UNIQUE(provider, provider_id)` (소셜 공급자별 계정 유일성 보장)
+- **동일 이메일 정책:** 이미 동일한 이메일로 가입된 계정(예: LOCAL 또는 다른 Provider)이 존재할 경우 신규 가입을 거부하고 기존 등록된 공급자로 로그인을 안내합니다.
 
 ---
 
@@ -151,6 +157,8 @@ erDiagram
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 발급 일시 |
 
 ---
+
+V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합니다. 소셜 최초 가입 시 사용자별 `SLANGI` 행을 생성하고 `is_unlocked`, `is_selected`를 모두 `TRUE`로 설정합니다. 테이블의 전체 컬럼은 아래 말랑이 인벤토리 절을 참고하세요.
 
 ### 3-3. `counseling_sessions` (AI 대화 세션 테이블)
 
@@ -233,6 +241,8 @@ erDiagram
 
 ### 3-6. `user_malangis` (말랑이 인벤토리 테이블)
 
+실제 V1 스키마에 포함됩니다. F-00 소셜 최초 가입은 `SLANGI`를 해금·선택 상태로 생성합니다.
+
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 인벤토리 항목 ID |
@@ -268,6 +278,7 @@ erDiagram
 | 테이블명 | 인덱스 명칭 | 대상 컬럼 | 목적 및 선정 이유 |
 | :--- | :--- | :--- | :--- |
 | `users` | `uk_users_email` | `email` | 이메일 유일성 보장 및 로그인 조회 가속 |
+| `users` | `uk_users_provider_id` | `provider`, `provider_id` | 소셜 공급자별 계정 식별 유일성 보장 |
 | `refresh_tokens` | `uk_token_hash` | `token_hash` | 토큰 조회 및 재발급 시 해시값 일치 검증 |
 | `refresh_tokens` | `idx_tokens_user` | `user_id`, `is_revoked` | 로그아웃 시 해당 회원의 모든 유효 토큰 일괄 폐기 |
 | `counseling_sessions` | `idx_sessions_user_status` | `user_id`, `status` | 사용자의 진행 중 세션 여부 고속 확인 |
