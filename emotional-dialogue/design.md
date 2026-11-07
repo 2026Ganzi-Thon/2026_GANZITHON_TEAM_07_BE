@@ -1,6 +1,6 @@
 # AI 감정 대화 제어 설계안
 
-[감정 대화 문서](README.md) · [서비스 기획안](../service-overview.md) · [기능 명세서](../features.md) · [조사 근거](research.md) · [평가 설계안](evaluation.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [서비스 기획안](../docs/service-overview.md) · [기능 명세서](../docs/features.md) · [조사 근거](research.md) · [평가 설계안](evaluation.md)
 
 상태: PM 확정 기획서(테슬랑) 반영 및 설계 구체화 · 2026-11-07 · 관련 기능: F-01~F-03, F-07, F-08, F-09
 

@@ -1,6 +1,6 @@
 # 서비스 기획안: 테슬랑
 
-[README로 돌아가기](../README.md) · [기능 명세서](features.md) · [API 명세서](api.md) · [데이터베이스 설계](database.md)
+[README로 돌아가기](../README.md) · [AI 감정 대화 시스템](../emotional-dialogue/README.md) · [기능 명세서](features.md) · [API 명세서](api.md) · [데이터베이스 설계](database.md)
 
 사용자가 제공한 PM 확정 기획서(서비스명: **테슬랑**)를 바탕으로 정리한 제품 기획 문서입니다.
 현재 백엔드는 기본 실행 기반(Spring Boot 4, MySQL, Hexagonal Architecture, Health API)이 구축되어 있으며, 업무 기능은 본 기획안에 정의된 MVP 범위를 기준으로 설계를 구체화하고 구현을 진행합니다.
@@ -144,6 +144,8 @@ flowchart TD
 ---
 
 ## 7. AI 감정 대화 시스템
+
+> 상세한 7단계 프로세스 명세와 위기 대응 가드레일은 독립 전문 문서인 **[AI 감정 대화 시스템](../emotional-dialogue/README.md)** ([7단계 프로세스](../emotional-dialogue/process.md) · [위기 대응 규칙](../emotional-dialogue/safety.md))에서 관리합니다.
 
 AI 상담 시스템은 **인지행동치료(CBT), 소크라테스식 대화법, 해결중심 단기치료(SFBT), 비폭력대화(NVC)**의 원리를 결합한 대화형 감정 케어 기능입니다.
 
