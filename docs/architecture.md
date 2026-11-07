@@ -9,11 +9,16 @@
 ```mermaid
 flowchart LR
     Client[클라이언트] --> AuthWeb[auth.adapter.in.web]
+    Client --> MalangiWeb[malangi.adapter.in.web]
     Client --> HealthWeb[health.adapter.in.web]
     AuthWeb --> AuthPort[auth.application.port.in]
     AuthService[auth.application.service] -. 구현 .-> AuthPort
     AuthService --> AuthOut[auth.application.port.out]
     AuthOut --> Adapters[OAuth · JPA · JWT 어댑터]
+    MalangiWeb --> MalangiPort[malangi.application.port.in]
+    MalangiService[malangi.application.service] -. 구현 .-> MalangiPort
+    MalangiService --> MalangiStore[malangi.application.port.out]
+    MalangiStore --> MalangiPersistence[MalangiInventoryPersistenceAdapter]
     HealthWeb --> HealthPort[health.application.port.in]
     HealthService[health.application.service] -. 구현 .-> HealthPort
     Config[config · Spring 조립] -. 생성 .-> AuthService
@@ -27,11 +32,17 @@ flowchart LR
 backend/
 ├── GanzithonApplication.java
 ├── config/                         # Spring bean 조립, OpenAPI 설정
+├── common/adapter/in/web/          # 공통 API envelope
 ├── auth/                            # F-00 인증 유스케이스와 어댑터
 │   ├── domain/
 │   ├── application/port/{in,out}/
 │   ├── application/service/
 │   └── adapter/{in/web,out/{oauth,persistence,security}}/
+├── malangi/                         # 인벤토리 조회·대표 종류 선택
+│   ├── domain/
+│   ├── application/port/{in,out}/
+│   ├── application/service/
+│   └── adapter/{in/web,out/persistence}/
 └── health/
     ├── adapter/in/web/              # HTTP 요청·응답과 Swagger 명세
     └── application/
@@ -60,7 +71,8 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 
 - `GET /api/v1/health`: 인증 없이 서버의 HTTP 응답 확인, DB·LLM 조회 없음
 - F-00: 이메일·비밀번호 인증, Kakao/Discord/Google Authorization Code 로그인, Refresh Token 회전·로그아웃, `/me` 프로필 조회 제공
-- MySQL 8.4 / JPA / Flyway: 회원·Refresh Token·말랑이 보유 테이블을 V1 마이그레이션으로 생성
+- F-04/F-05 일부: 말랑이 인벤토리 조회와 해금된 말랑이 선택 API 제공; 감정 기반 추천 및 터치 인터랙션은 미구현
+- MySQL 8.4 / JPA / Flyway: 회원·Refresh Token·말랑이 보유 테이블을 V1으로 생성, V2에서 기존 회원의 기본 SLANGI 보정
 - Spring Security / JWT Resource Server: 인증·OAuth 공개 경로 외에는 Access Token을 요구하며 Refresh Token은 API 인증에 사용할 수 없음
 - Spring AI: Boot 4 호환 BOM과 공통 ChatClient API만 설치됨. provider/model 설정과 외부 호출은 미구현
 - Actuator: 기본 health endpoint만 HTTP 노출

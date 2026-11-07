@@ -1,5 +1,7 @@
-package com.ganzithon.backend.auth.adapter.out.persistence;
+package com.ganzithon.backend.malangi.adapter.out.persistence;
 
+import com.ganzithon.backend.malangi.domain.MalangiType;
+import com.ganzithon.backend.malangi.domain.OwnedMalangi;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -32,15 +34,34 @@ class UserMalangiEntity {
     @Column(name = "total_play_time", nullable = false)
     private int totalPlayTime;
 
+    @Column(name = "last_interacted_at")
+    private LocalDateTime lastInteractedAt;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
     protected UserMalangiEntity() {}
 
-    UserMalangiEntity(long userId, String malangiType, boolean unlocked, boolean selected) {
+    UserMalangiEntity(long userId, MalangiType type, boolean unlocked, boolean selected) {
         this.userId = userId;
-        this.malangiType = malangiType;
+        this.malangiType = type.name();
         this.unlocked = unlocked;
+        this.selected = selected;
+    }
+
+    OwnedMalangi toDomain() {
+        return new OwnedMalangi(MalangiType.valueOf(malangiType), unlocked, selected, totalPlayTime, lastInteractedAt);
+    }
+
+    MalangiType type() {
+        return MalangiType.valueOf(malangiType);
+    }
+
+    boolean unlocked() {
+        return unlocked;
+    }
+
+    void select(boolean selected) {
         this.selected = selected;
     }
 }

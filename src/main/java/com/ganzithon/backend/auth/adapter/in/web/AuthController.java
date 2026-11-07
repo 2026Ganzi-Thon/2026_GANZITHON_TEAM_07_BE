@@ -8,6 +8,7 @@ import com.ganzithon.backend.auth.application.port.in.AuthUseCase.SocialLoginCom
 import com.ganzithon.backend.auth.domain.AuthProvider;
 import com.ganzithon.backend.auth.domain.AuthUser;
 import com.ganzithon.backend.auth.domain.TokenPair;
+import com.ganzithon.backend.common.adapter.in.web.ApiEnvelope;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

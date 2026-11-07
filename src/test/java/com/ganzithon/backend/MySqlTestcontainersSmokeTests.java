@@ -34,7 +34,7 @@ class MySqlTestcontainersSmokeTests {
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(flyway.info().applied())
                 .extracting(migration -> migration.getVersion().getVersion())
-                .containsExactly("1");
+                .containsExactly("1", "2");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
                         + "AND table_name IN ('users', 'refresh_tokens', 'user_malangis')", Integer.class))

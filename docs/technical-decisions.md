@@ -29,6 +29,12 @@
 - 동일 이메일의 계정 자동 병합은 하지 않으며 HTTP 409로 기존 공급자 로그인을 안내합니다. 실제 공급자 앱 등록 및 end-to-end OAuth 검증은 각 환경의 자격 증명이 준비된 뒤 수행해야 합니다.
 - F-00의 핵심 경로는 H2 기반 API 테스트와 OAuth HTTP 모킹 테스트로 검증합니다. MySQL/Testcontainers 결과는 해당 검증 실행 후 기록합니다.
 
+## 말랑이 인벤토리 API · 2026-11-08
+
+- 말랑이 인벤토리는 사용자별 보유 데이터로 조회하며, 선택 변경은 DB 행 잠금 안에서 해금 여부를 확인하고 선택 상태를 갱신합니다. 잠긴 종류는 HTTP 409로 거부합니다.
+- 모든 신규 사용자는 기본 `SLANGI`를 해금·선택 상태로 받습니다. V2 마이그레이션은 이미 생성된 계정 중 기본 말랑이가 누락된 경우에만 추가합니다.
+- API 목록은 고정 카탈로그(`SLANGI`, `SQUISHY`, `WAKPPU`) 순서로 반환하고, 아직 인벤토리 행이 없는 종류는 잠긴 항목으로 표현합니다. 감정 기반 추천, 추천에 따른 추가 해금, 조작 로그는 별도 기능 범위로 둡니다.
+
 근거: [Spring AI 시작하기](https://docs.spring.io/spring-ai/reference/getting-started.html), [Spring Boot DevTools](https://docs.spring.io/spring-boot/reference/using/devtools.html), [Flyway 설정](https://docs.spring.io/spring-boot/how-to/data-initialization.html), [JWT Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [Testcontainers](https://docs.spring.io/spring-boot/reference/testing/testcontainers.html), [Actuator endpoint](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html).
 
 근거: [Spring Boot 요구사항](https://docs.spring.io/spring-boot/system-requirements.html), [Gradle Java 호환성](https://docs.gradle.org/current/userguide/compatibility.html), [MySQL LTS 안내](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html).

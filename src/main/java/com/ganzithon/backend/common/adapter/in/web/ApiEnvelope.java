@@ -1,4 +1,4 @@
-package com.ganzithon.backend.auth.adapter.in.web;
+package com.ganzithon.backend.common.adapter.in.web;
 
 public record ApiEnvelope<T>(boolean success, T data, ApiError error) {
     public static <T> ApiEnvelope<T> success(T data) {

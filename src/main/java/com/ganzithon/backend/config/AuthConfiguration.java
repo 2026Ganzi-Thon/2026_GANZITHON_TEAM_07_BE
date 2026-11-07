@@ -8,7 +8,7 @@ import com.ganzithon.backend.auth.application.port.out.AuthUserStore;
 import com.ganzithon.backend.auth.application.port.out.PasswordHasher;
 import com.ganzithon.backend.auth.application.port.out.RefreshTokenStore;
 import com.ganzithon.backend.auth.application.port.out.SocialProfileClient;
-import com.ganzithon.backend.auth.application.port.out.StarterMalangiStore;
+import com.ganzithon.backend.malangi.application.port.out.MalangiInventoryStore;
 import com.ganzithon.backend.auth.application.service.AuthService;
 import java.time.Clock;
 import java.util.Base64;
@@ -88,11 +88,11 @@ public class AuthConfiguration {
             PasswordHasher passwordHasher,
             AuthTokenIssuer tokenIssuer,
             SocialProfileClient socialProfileClient,
-            StarterMalangiStore starterMalangiStore,
+            MalangiInventoryStore malangiInventory,
             AuthTransaction transaction
     ) {
         return new AuthService(users, refreshTokens, passwordHasher, tokenIssuer, socialProfileClient,
-                starterMalangiStore, transaction);
+                malangiInventory, transaction);
     }
 
     @Bean

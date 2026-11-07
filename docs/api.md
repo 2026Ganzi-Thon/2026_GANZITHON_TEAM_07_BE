@@ -83,6 +83,7 @@
 #### [POST] `/api/v1/auth/signup` — 회원가입
 - **검증:** email 형식·최대 255자, password 8~72자(UTF-8 기준 최대 72바이트), nickname 최대 50자. 이메일은 앞뒤 공백 제거 후 소문자로 정규화합니다.
 - **중복 이메일:** HTTP 409 `EMAIL_ALREADY_REGISTERED`; 응답의 `data`에 기존 `existingProvider`와 정규화된 `registeredEmail`을 반환합니다.
+- 가입 완료 시 기본 말랑이 `SLANGI`를 해금 및 선택 상태로 지급합니다.
 - **Request Body:**
 ```json
 {
@@ -502,6 +503,7 @@
 #### [PATCH] `/api/v1/malangis/{malangiType}/select` — 대표 말랑이 변경
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `malangiType` (`SLANGI`, `SQUISHY`, `WAKPPU`)
+- 잠긴 말랑이는 HTTP 409 `LOCKED`, 지원하지 않는 종류는 HTTP 400 `INVALID_TYPE`으로 응답합니다. 선택은 요청 사용자 인벤토리에만 적용합니다.
 - **응답 (HTTP 200 OK):**
 ```json
 {
