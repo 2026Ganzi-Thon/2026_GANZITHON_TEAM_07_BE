@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+deny() {
+    printf '%s\n' "Commit blocked: $1" >&2
+    exit 1
+}
+
+# 1. Block accidental commit of secret / environment files
+if git diff --cached --name-only | grep -E '^(\.env|\.env\..*)$' | grep -vE '\.(example|template)$' >/dev/null 2>&1; then
+    deny 'Do not commit .env or secret environment files.'
+fi
+
+# 2. Check whitespace and unresolved conflict markers in staged changes
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    against=HEAD
+else
+    against=$(git hash-object -t tree /dev/null)
+fi
+
+if ! git diff-index --check --cached "$against" --; then
+    deny 'Trailing whitespace or conflict markers detected in staged files.'
+fi
+
+# 3. Run Gradle checks and tests before committing
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+if [ -f "$REPO_ROOT/gradlew" ]; then
+    printf '%s\n' "Running pre-commit verification (./gradlew check)..."
+    if ! "$REPO_ROOT/gradlew" check --daemon; then
+        deny 'Gradle check/tests failed. Fix the issues before committing.'
+    fi
+fi

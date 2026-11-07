@@ -15,7 +15,7 @@
 ```bash
 git clone https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE.git
 cd 2026_GANZITHON_TEAM_07_BE
-chmod +x .githooks/pre-push
+chmod +x .githooks/pre-push .githooks/pre-commit
 git config --local core.hooksPath "$PWD/.githooks"
 git config --local remote.pushDefault origin
 git config --local push.default simple

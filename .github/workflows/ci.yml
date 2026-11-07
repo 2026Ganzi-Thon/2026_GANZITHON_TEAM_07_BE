@@ -40,8 +40,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - name: Verify push guard
-        run: python3 scripts/test_pre_push.py
+      - name: Verify git hooks
+        run: |
+          python3 scripts/test_pre_push.py
+          python3 scripts/test_pre_commit.py
       - name: Build and test with MySQL 8.4
         env:
           RUN_MYSQL_TESTS: 'true'
