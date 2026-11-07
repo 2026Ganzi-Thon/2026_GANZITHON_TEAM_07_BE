@@ -1,6 +1,6 @@
 # 테슬랑 AI 감정 대화 시스템 (Emotional Dialogue System)
 
-[프로젝트 README](../README.md) · [서비스 기획안](../docs/service-overview.md) · [기능 명세서](../docs/features.md) · [API 명세서](../docs/api.md)
+[프로젝트 README](../../README.md) · [서비스 기획안](../service-overview.md) · [기능 명세서](../features.md) · [API 명세서](../api.md)
 
 테슬랑 서비스의 핵심 엔진인 **AI 감정 대화 시스템**에 관한 독립 전문 문서 모음입니다.
 단순한 일회성 위로나 조언을 넘어, 사용자가 자신의 내면을 명확히 들여다보고 인지적 유연성을 확보하며 건강한 대처 행동을 스스로 선택할 수 있도록 돕는 대화형 감정 케어 시스템을 정의합니다.

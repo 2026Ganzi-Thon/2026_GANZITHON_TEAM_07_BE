@@ -130,7 +130,7 @@ JDK 버전, 환경변수, 로컬 실행·테스트 절차는 [개발 환경 및 
 | :--- | :--- |
 | [서비스 기획안](docs/service-overview.md) | 서비스 배경, 목표, 타겟, 사용자 흐름 |
 | [기능 명세서](docs/features.md) | 기능별 요구사항, 처리 규칙, 완료 조건 |
-| [AI 감정 대화 시스템](emotional-dialogue/README.md) | 7단계 상담 프로세스, 위기 대응 6대 규칙, BE 대화 제어, 질문 전략 조사, 평가 프레임워크 |
+| [AI 감정 대화 시스템](docs/emotional-dialogue/README.md) | 7단계 상담 프로세스, 위기 대응 6대 규칙, BE 대화 제어, 질문 전략 조사, 평가 프레임워크 |
 | [API 명세서](docs/api.md) | 엔드포인트, 요청·응답, 인증, 오류 |
 | [시스템 아키텍처](docs/architecture.md) | 시스템 구성과 통신 흐름 |
 | [데이터베이스 설계 및 ERD](docs/database.md) | 테이블, 관계, 제약조건 |

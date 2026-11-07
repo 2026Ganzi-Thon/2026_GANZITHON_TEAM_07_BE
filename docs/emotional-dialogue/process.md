@@ -1,6 +1,6 @@
 # 7단계 AI 감정 상담 프로세스 명세 (Dialogue Process)
 
-[감정 대화 시스템 README](README.md) · [위기 대응 규칙](safety.md) · [대화 제어 아키텍처](design.md) · [데이터베이스 설계](../docs/database.md)
+[감정 대화 시스템 README](README.md) · [위기 대응 규칙](safety.md) · [대화 제어 아키텍처](design.md) · [데이터베이스 설계](../database.md)
 
 AI 감정 상담의 7개 단계(STEP 01 ~ STEP 07)에 대한 상세 요구사항, 수집 데이터 규약, 핵심 발화 및 단계 전이 규칙을 정의합니다.
 

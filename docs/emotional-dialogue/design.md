@@ -1,6 +1,6 @@
 # AI 감정 대화 제어 설계안
 
-[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [서비스 기획안](../docs/service-overview.md) · [기능 명세서](../docs/features.md) · [조사 근거](research.md) · [평가 설계안](evaluation.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [서비스 기획안](../service-overview.md) · [기능 명세서](../features.md) · [조사 근거](research.md) · [평가 설계안](evaluation.md)
 
 상태: PM 확정 기획서(테슬랑) 반영 및 설계 구체화 · 2026-11-07 · 관련 기능: F-01~F-03, F-07, F-08, F-09
 
@@ -154,3 +154,25 @@ summaryProposal: null
 5. 사용자 식별·접근 권한, API 계약과 오류·중복·동시성 처리
 
 이 문서는 위 결정을 대신하지 않습니다. 검증 방법은 설계안에 포함했지만 모델 실험과 임상·사용자 검증은 아직 수행하지 않았습니다.
+
+---
+
+## Wayfinding 확정 구현 스펙 (2026-11-07)
+
+Wayfinding 및 Grilling을 통해 합의된 백엔드 기술 구현 스펙입니다.
+
+1. **상태 머신 및 전용 프롬프트 주입 ([01-dialogue-turn-control](../../.scratch/emotional-dialogue/issues/01-dialogue-turn-control.md))**
+   - 백엔드가 세션의 `currentStep` (STEP 01~07) 상태 머신을 엄격히 통제합니다.
+   - 각 단계에 맞춰 인지행동치료(CBT), 소크라테스식 대화법, SFBT, NVC의 전용 제약조건이 담긴 시스템 프롬프트를 동적으로 주입합니다.
+2. **Spring AI 연동 및 모델 스택 ([02-llm-integration-stack](../../.scratch/emotional-dialogue/issues/02-llm-integration-stack.md))**
+   - Spring Boot 4 호환 Spring AI 스타터를 채택하고, 환경변수(`LLM_API_KEY`) 기반으로 GPT-4o-mini(또는 Claude 3.5 Haiku)를 연동합니다.
+3. **위기 신호 1차 서버 인메모리 필터 ([03-safety-first-line-filter](../../.scratch/emotional-dialogue/issues/03-safety-first-line-filter.md))**
+   - AI 호출 전 서버 내부의 정규식(Regex)과 고위험 키워드 사전으로 1차 즉각 차단합니다. 일상적 과장 표현("과제 때문에 죽겠다 ㅋㅋ" 등)의 예외 화이트리스트를 포함합니다.
+4. **슬라이딩 윈도우 문맥 구성 ([04-context-window-and-history](../../.scratch/emotional-dialogue/issues/04-context-window-and-history.md))**
+   - 토큰 낭비 방지와 문맥 집중도를 위해 최근 6~8턴의 직전 대화 기록과 지금까지 DB에 누적된 구조화 슬롯(`Situation`, `primary_emotion`, `initial_thought` 등)을 프롬프트 상단 컨텍스트로 결합합니다.
+5. **정형 출력(Structured Output) 및 전이 신호 수신 ([05-structured-output-and-step-transition](../../.scratch/emotional-dialogue/issues/05-structured-output-and-step-transition.md))**
+   - Spring AI의 Structured Output (JSON Schema)을 통해 AI로부터 사용자 노출 문장(`userMessage`), 추출 속성(`extractedData`), 단계 전이 추천(`transitionReady`)을 정형화된 JSON으로 수신하고 백엔드가 검증 후 단계를 전환합니다.
+6. **하이브리드 말랑이 추천 ([06-malangi-recommendation-logic](../../.scratch/emotional-dialogue/issues/06-malangi-recommendation-logic.md))**
+   - 추천 캐릭터 매핑(불안➔슬랑이, 속상함➔스퀴시, 분노➔왁뿌볼)은 백엔드 도메인 룰로 확정하고, 사용자 맞춤형 추천 사유 및 상담 요약은 LLM이 생성합니다.
+7. **회복 탄력성(Resilience) 및 폴백 메시지 ([07-llm-failure-and-fallback](../../.scratch/emotional-dialogue/issues/07-llm-failure-and-fallback.md))**
+   - 5초 타임아웃, 지수 백오프 기반 1회 즉시 재시도, 최종 실패 시 현재 단계에 맞춘 온화한 시스템 기본 안내 문장을 반환하여 대화가 중단되지 않도록 보호합니다.

@@ -58,8 +58,8 @@
 
 사용자는 소크라테스식 대화·CBT·SFBT 자료를 제시하고, 사용자 대화에 이를 도입하며 BE가 AI를 제어하는 에이전틱한 구성이 가능한지 질문했습니다.
 
-- [설계안](../../emotional-dialogue/design.md): 제한된 대화 행동 선택, BE의 상태·권한·응답 검증, 실패 처리와 평가 방법을 제안합니다.
-- [조사 기록](../../emotional-dialogue/research.md): 기법과 워크플로의 근거, 임상 표준·치료 효과로 확대 해석할 수 없는 한계를 구분합니다.
+- [설계안](../../docs/emotional-dialogue/design.md): 제한된 대화 행동 선택, BE의 상태·권한·응답 검증, 실패 처리와 평가 방법을 제안합니다.
+- [조사 기록](../../docs/emotional-dialogue/research.md): 기법과 워크플로의 근거, 임상 표준·치료 효과로 확대 해석할 수 없는 한계를 구분합니다.
 
 대화 방식·정책은 검토 단계입니다. 구현, 모델·업체 선택, 외부 호출 비용, 공개 API·스키마·데이터 보관 정책을 확정하지 않았습니다. 기존 `docs/service-planning` 브랜치에서 이어서 문서만 커밋하고 푸시·PR 보류 요청을 유지합니다.
 
@@ -69,8 +69,8 @@
 
 사용자는 평가 데이터셋·사람 평가 설명을 문서로 추가하고 감정 대화 전용 폴더로 관리한 뒤 PR을 생성하도록 요청했습니다. 앞서 보류했던 푸시·PR을 이번 요청으로 진행합니다.
 
-- [감정 대화 문서](../../emotional-dialogue/README.md): 설계·조사·평가를 `emotional-dialogue/`에서 관리합니다.
-- [평가 설계안](../../emotional-dialogue/evaluation.md): ESConv·CBT-Bench·CounselBench의 범위, 자체 평가 사례와 역할 분담을 정리합니다.
+- [감정 대화 문서](../../docs/emotional-dialogue/README.md): 설계·조사·평가를 `docs/emotional-dialogue/`에서 관리합니다.
+- [평가 설계안](../../docs/emotional-dialogue/evaluation.md): ESConv·CBT-Bench·CounselBench의 범위, 자체 평가 사례와 역할 분담을 정리합니다.
 - 대화 상태 추정과 다음 행동 선택을 구분하고 판단 보류·근거 발언과 평가 한계를 설계안에 보완합니다.
 
 문서 작성만 수행하며 실제 모델 평가·데이터 구축·업무 기능 구현 상태는 바꾸지 않습니다.
@@ -103,10 +103,10 @@ PM이 작성한 최종 기획서가 제공되어 기존에 '미정'으로 남아
   - `docs/features.md`: 기능 목록 우선순위 갱신 및 7단계 프로세스/위기대응 명세화
   - `docs/database.md`: ERD 및 `users`, `emotion_records`, `counseling_messages`, `malangi_usages` 테이블 설계
   - `docs/api.md`: 인증, 상담 세션, 마음 기록함, 말랑이 사용 이력, 위기 대응 응답 API 계약 수립
-  - `emotional-dialogue/`: 감정 대화 시스템을 `docs/` 하위에서 최상위 핵심 문서 디렉토리로 독립 분리
-    - `emotional-dialogue/README.md`: 시스템 개요 및 5대 전문 문서 목차
-    - `emotional-dialogue/process.md`: 7단계 상담 프로세스(STEP 01~07) 상세 명세
-    - `emotional-dialogue/safety.md`: 위기 대응 6대 규칙 및 2중 안전 검사 가드레일 명세
-    - `emotional-dialogue/design.md`: BE 대화 제어 상태 머신 및 아키텍처
-    - `emotional-dialogue/research.md`: 4대 심리 상담 기법 조사 및 근거
-    - `emotional-dialogue/evaluation.md`: 대화 평가 데이터셋 및 프레임워크
+  - `docs/emotional-dialogue/`: 감정 대화 시스템을 독립 전문 문서군으로 분리 및 체계화
+    - `docs/emotional-dialogue/README.md`: 시스템 개요 및 5대 전문 문서 목차
+    - `docs/emotional-dialogue/process.md`: 7단계 상담 프로세스(STEP 01~07) 상세 명세
+    - `docs/emotional-dialogue/safety.md`: 위기 대응 6대 규칙 및 2중 안전 검사 가드레일 명세
+    - `docs/emotional-dialogue/design.md`: BE 대화 제어 상태 머신, Wayfinding 확정 스펙(7개 항목) 및 아키텍처
+    - `docs/emotional-dialogue/research.md`: 4대 심리 상담 기법 조사 및 근거
+    - `docs/emotional-dialogue/evaluation.md`: 대화 평가 데이터셋 및 프레임워크

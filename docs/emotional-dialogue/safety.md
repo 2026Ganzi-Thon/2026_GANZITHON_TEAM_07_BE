@@ -1,6 +1,6 @@
 # 위기 대응 규칙 및 안전 가드레일 (Safety Guardrails)
 
-[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [대화 제어 아키텍처](design.md) · [API 명세서](../docs/api.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [대화 제어 아키텍처](design.md) · [API 명세서](../api.md)
 
 정신건강 및 심리 케어를 다루는 서비스로서 사용자의 생명과 안전을 보호하기 위해 **AI 대화 전체 파이프라인에 최우선 순위로 적용되는 6대 안전 규칙**을 정의합니다.
 

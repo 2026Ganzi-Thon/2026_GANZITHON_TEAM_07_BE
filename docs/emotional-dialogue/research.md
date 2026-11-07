@@ -1,6 +1,6 @@
 # AI 감정 대화의 질문 전략과 실행 구조 조사
 
-[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [AI 대화 설계안](design.md) · [평가 설계안](evaluation.md) · [서비스 기획안](../docs/service-overview.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [AI 대화 설계안](design.md) · [평가 설계안](evaluation.md) · [서비스 기획안](../service-overview.md)
 
 조사일: 2026-11-03. 관련 기능: F-02, 연계 기능 F-01·F-03·F-07~F-09.
 

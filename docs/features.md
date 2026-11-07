@@ -1,6 +1,6 @@
 # 기능 명세서
 
-[README로 돌아가기](../README.md) · [AI 감정 대화 시스템](../emotional-dialogue/README.md) · [서비스 기획안](service-overview.md) · [API 명세서](api.md) · [데이터베이스 설계](database.md)
+[README로 돌아가기](../README.md) · [AI 감정 대화 시스템](emotional-dialogue/README.md) · [서비스 기획안](service-overview.md) · [API 명세서](api.md) · [데이터베이스 설계](database.md)
 
 ## 범위와 상태
 
@@ -44,7 +44,7 @@
 
 ## 2. AI 감정 대화 및 생각 정리 (F-01, F-02, F-03, F-07, MVP 필수)
 
-> 7단계 상담 라이프사이클의 세부 데이터 규약과 질문 전략은 **[AI 감정 대화 시스템: 7단계 상담 프로세스](../emotional-dialogue/process.md)**를 참조하세요.
+> 7단계 상담 라이프사이클의 세부 데이터 규약과 질문 전략은 **[AI 감정 대화 시스템: 7단계 상담 프로세스](emotional-dialogue/process.md)**를 참조하세요.
 
 AI는 사용자의 고민에 일방적인 해결책을 제시하지 않고, 질문을 통해 사용자가 자신의 감정과 생각을 명확히 들여다보도록 돕습니다.
 
@@ -104,7 +104,7 @@ AI는 사용자의 고민에 일방적인 해결책을 제시하지 않고, 질�
 
 ## 3. 위기 대응 및 안전 보호 규칙 (F-09, MVP 필수 - Safety Guardrail)
 
-> 상세한 6대 안전 규칙과 데이터 격리 정책은 **[AI 감정 대화 시스템: 위기 대응 규칙 및 안전 가드레일](../emotional-dialogue/safety.md)**을 참조하세요.
+> 상세한 6대 안전 규칙과 데이터 격리 정책은 **[AI 감정 대화 시스템: 위기 대응 규칙 및 안전 가드레일](emotional-dialogue/safety.md)**을 참조하세요.
 
 정신건강 및 심리 케어 서비스의 안전성을 위해 전체 대화 흐름에 최우선 적용되는 규칙입니다.
 
