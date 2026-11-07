@@ -49,9 +49,12 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 ## 현재 기능 및 외부 연동
 
 - `GET /api/v1/health`: 인증 없이 서버의 HTTP 응답 확인, DB·LLM 조회 없음
-- MySQL 8.4 / JPA: 기존 연결 설정 유지. 아직 엔티티·테이블 없음
+- MySQL 8.4 / JPA / Flyway: DB 연결과 마이그레이션 기반은 준비됨. 업무 엔티티·테이블·마이그레이션은 아직 없음
+- Spring Security / JWT Resource Server: 의존성과 공개 경로 기본 체인만 준비됨. 현재는 모든 경로를 허용하며 인증·인가와 토큰 발급/검증은 미구현
+- Spring AI: Boot 4 호환 BOM과 공통 ChatClient API만 설치됨. provider/model 설정과 외부 호출은 미구현
+- Actuator: 기본 health endpoint만 HTTP 노출
 - Swagger UI와 OpenAPI: 기존 경로 유지, 기본 비활성화·로컬 활성화
-- LLM, 인증, 배포 환경: 미정
+- LLM provider/model, 인증 흐름, 배포 환경: 미정
 
 앱 API는 컨트롤러에서 `/api/v1` 경로를 사용합니다. servlet context path를
 전역으로 설정하지 않아 Swagger UI와 `/v3/api-docs`는 이동하지 않습니다.
