@@ -30,7 +30,9 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 - Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html
 - OpenAPI JSON: http://127.0.0.1:8080/v3/api-docs
 
-서버 기동 후 `curl http://127.0.0.1:8080/api/v1/health`로 `{"status":"UP"}`을 확인합니다. health는 인증 없이 접근하고 DB·LLM 상태를 조회하지 않으며, 현재 앱 기동에는 DB가 필요합니다. Swagger에는 health가 표시되고 감정 탐색 업무 API는 아직 없습니다. LLM 제공자·모델·키도 빈 값이며 실제 호출은 없습니다.
+서버 기동 후 `curl http://127.0.0.1:8080/api/v1/health`로 `{"status":"UP"}`을 확인합니다. health는 인증 없이 접근하고 DB·LLM 상태를 조회하지 않습니다. Actuator health는 `http://127.0.0.1:8080/actuator/health`에서 확인할 수 있으며, HTTP에는 health만 노출되고 상세 정보는 숨깁니다. 현재 앱 기동에는 DB가 필요합니다.
+
+개발 기반 라이브러리(DevTools, Lombok, Flyway, Spring Security/JWT, Spring AI 공통 ChatClient API, Testcontainers, Actuator)는 설치되어 있습니다. Flyway에는 업무 테이블 마이그레이션이 없고, Security는 현재 모든 경로를 허용하므로 로그인·JWT 발급/검증 기능은 아직 제공하지 않습니다. Spring AI provider/model 설정도 없으므로 외부 AI 호출은 발생하지 않습니다. Swagger에는 health만 표시되고 감정 탐색 업무 API는 아직 없습니다.
 
 ## 환경변수
 
@@ -45,9 +47,9 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 | DB_PASSWORD | 애플리케이션 DB 비밀번호 | 필수, `.env`에 설정 |
 | MYSQL_ROOT_PASSWORD | Compose MySQL 초기 root 비밀번호 | Compose 실행 시 필수 |
 | API_DOCS_ENABLED | OpenAPI 및 Swagger UI 공개 여부 | 기본 `false`, 로컬 예시 `true` |
-| LLM_PROVIDER / LLM_MODEL / LLM_API_KEY | 추후 LLM 연동용 예약 항목 | 빈 값, 현재 사용하지 않음 |
+| LLM_PROVIDER / LLM_MODEL / LLM_API_KEY | 추후 LLM 연동용 예약 항목 | 빈 값, provider 선택·호출 미구현 |
 
-기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 현재 엔티티와 테이블은 없고 `ddl-auto=validate`이므로 테이블을 자동 생성하지 않습니다. 스키마 변경 방식은 첫 저장 기능을 구현할 때 결정합니다.
+기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 현재 엔티티와 업무 테이블은 없으며 `ddl-auto=validate`이므로 Hibernate가 테이블을 자동 생성하지 않습니다. Flyway는 설치되어 있지만 업무 마이그레이션 파일은 아직 없습니다.
 
 Compose는 MySQL을 호스트의 `127.0.0.1`에만 노출합니다. 운영 배포·TLS·인증은 별도 설계 대상이며, 외부 바인딩이 필요하면 `SERVER_ADDRESS`를 환경에 맞게 지정합니다.
 
@@ -59,6 +61,12 @@ java -jar build/libs/ganzithon-0.0.1-SNAPSHOT.jar
 ```
 
 일반 테스트는 MVC slice의 health 계약과 DB 의존성 없음, H2 기반 앱 기동·health·Swagger 접근, JDBC 연결, ArchUnit 의존 방향을 검사합니다. MySQL 호환성 검증을 대체하지 않습니다.
+
+Testcontainers 기반 MySQL 8.4 연결과 Flyway 초기화를 확인하려면 Docker를 실행한 뒤 다음 명령을 사용합니다. Docker가 없으면 해당 테스트는 건너뜁니다.
+
+```bash
+./gradlew test --tests '*MySqlTestcontainersSmokeTests'
+```
 
 실제 MySQL 연결 테스트는 위 로컬 DB 준비 후 별도로 실행합니다:
 

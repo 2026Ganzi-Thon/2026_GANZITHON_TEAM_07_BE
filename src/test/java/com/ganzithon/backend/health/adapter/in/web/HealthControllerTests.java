@@ -1,6 +1,7 @@
 package com.ganzithon.backend.health.adapter.in.web;
 
 import com.ganzithon.backend.config.HealthConfig;
+import com.ganzithon.backend.config.SecurityConfig;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(HealthController.class)
-@Import(HealthConfig.class)
+@Import({HealthConfig.class, SecurityConfig.class})
 class HealthControllerTests {
 
     @Autowired
