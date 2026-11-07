@@ -118,22 +118,20 @@ the team's process. Report the PR URL and validation results. After the team PR
 is merged, return to `main` and run `git pull --ff-only origin main`. Keep an
 unfinished branch available until the work is merged and local files are safe.
 
-## Local push guard
+## Local Git hooks
 
-Enable the tracked hook once per clone:
+Enable the tracked hooks once per clone:
 
 ```sh
-chmod +x .githooks/pre-push
+chmod +x .githooks/pre-push .githooks/pre-commit
 git config --local core.hooksPath "$PWD/.githooks"
 git config --local remote.pushDefault origin
 git config --local push.default simple
 ```
 
-The hook permits task branch updates through the team `origin` only. It blocks
-local or remote `main`, tags, deletions, other remotes, unrelated repositories,
-and multiple push URLs. It supports the team's HTTPS and SSH URL forms.
-Validate it with `python3 scripts/test_pre_push.py` before changing its behavior.
-Use the hook normally; never bypass it with `--no-verify` or disabled hooks.
+- `pre-commit`: Blocks committing `.env` secret files, checks trailing whitespace/conflict markers, and runs `./gradlew check` before committing. Validate with `python3 scripts/test_pre_commit.py`.
+- `pre-push`: Permits task branch updates through the team `origin` only. It blocks local or remote `main`, tags, deletions, other remotes, unrelated repositories, and multiple push URLs. Validate with `python3 scripts/test_pre_push.py`.
+Use the hooks normally; never bypass them with `--no-verify` or disabled hooks.
 
 The hook is local and must be installed in each clone. Server-side protection
 requires a repository administrator to protect `main`, require PR review and
