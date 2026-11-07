@@ -1,6 +1,6 @@
 # 감정 대화 평가 설계안
 
-[감정 대화 문서](README.md) · [대화 제어 설계안](design.md) · [질문 전략 조사 근거](research.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [대화 제어 설계안](design.md) · [질문 전략 조사 근거](research.md) · [서비스 기획안](../service-overview.md)
 
 상태: 제안, 미구현 · 2026-11-03 · 관련 기능: F-02, 연계 F-01·F-03
 
