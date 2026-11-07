@@ -161,18 +161,24 @@ summaryProposal: null
 
 Wayfinding 및 Grilling을 통해 합의된 백엔드 기술 구현 스펙입니다.
 
-1. **상태 머신 및 전용 프롬프트 주입 ([01-dialogue-turn-control](../../.scratch/emotional-dialogue/issues/01-dialogue-turn-control.md))**
-   - 백엔드가 세션의 `currentStep` (STEP 01~07) 상태 머신을 엄격히 통제합니다.
+1. **상태 머신, 슬롯 축적 및 전용 프롬프트 주입 ([01-dialogue-turn-control](../../.scratch/emotional-dialogue/issues/01-dialogue-turn-control.md))**
+   - 백엔드가 세션의 `currentStep` (`STEP_01`~`STEP_07`)과 `status` (`IN_PROGRESS`, `COMPLETED`, `ABORTED_RISK`, `ABORTED_USER`)를 엄격히 분리하여 통제합니다.
+   - 대화가 진행되는 동안 추출된 중간 슬롯(`Situation`, `primaryEmotion`, `initialThought` 등)과 타임라인 스냅샷은 `counseling_sessions.session_state` JSON 컬럼에 실시간으로 점진 축적되며, 상담 완료(`complete`) 시 `counseling_results`로 확정 복사됩니다.
    - 각 단계에 맞춰 인지행동치료(CBT), 소크라테스식 대화법, SFBT, NVC의 전용 제약조건이 담긴 시스템 프롬프트를 동적으로 주입합니다.
+   - 사용자가 "그만할래", "다음에 할래" 발화 시 또는 명시적 API(`POST /abort`) 호출 시 `status`를 `ABORTED_USER`로 전환하고 그 시점까지의 슬롯을 보존합니다.
 2. **Spring AI 연동 및 모델 스택 ([02-llm-integration-stack](../../.scratch/emotional-dialogue/issues/02-llm-integration-stack.md))**
    - Spring Boot 4 호환 Spring AI 스타터를 채택하고, 환경변수(`LLM_API_KEY`) 기반으로 GPT-4o-mini(또는 Claude 3.5 Haiku)를 연동합니다.
-3. **위기 신호 1차 서버 인메모리 필터 ([03-safety-first-line-filter](../../.scratch/emotional-dialogue/issues/03-safety-first-line-filter.md))**
+3. **위기 신호 1차 서버 인메모리 필터 및 2차 분류기 실패 정책 ([03-safety-first-line-filter](../../.scratch/emotional-dialogue/issues/03-safety-first-line-filter.md))**
    - AI 호출 전 서버 내부의 정규식(Regex)과 고위험 키워드 사전으로 1차 즉각 차단합니다. 일상적 과장 표현("과제 때문에 죽겠다 ㅋㅋ" 등)의 예외 화이트리스트를 포함합니다.
+   - **2차 AI 안전 분류기 실패 정책:** 2차 분류기 호출 중 네트워크 오류나 타임아웃이 발생하면 1회 즉시 재시도하며, 최종 실패 시 Fail-Safe 원칙에 따라 사용자 발화의 안전성이 완전히 입증되지 않은 경우 무리한 심층 질문 대신 안전한 기본 공감 문장을 반환하고 세션을 안전 모드로 보호합니다.
 4. **슬라이딩 윈도우 문맥 구성 ([04-context-window-and-history](../../.scratch/emotional-dialogue/issues/04-context-window-and-history.md))**
-   - 토큰 낭비 방지와 문맥 집중도를 위해 최근 6~8턴의 직전 대화 기록과 지금까지 DB에 누적된 구조화 슬롯(`Situation`, `primary_emotion`, `initial_thought` 등)을 프롬프트 상단 컨텍스트로 결합합니다.
+   - 토큰 낭비 방지와 문맥 집중도를 위해 최근 6~8턴의 직전 대화 기록과 지금까지 `session_state`에 누적된 구조화 슬롯을 프롬프트 상단 컨텍스트로 결합합니다.
 5. **정형 출력(Structured Output) 및 전이 신호 수신 ([05-structured-output-and-step-transition](../../.scratch/emotional-dialogue/issues/05-structured-output-and-step-transition.md))**
    - Spring AI의 Structured Output (JSON Schema)을 통해 AI로부터 사용자 노출 문장(`userMessage`), 추출 속성(`extractedData`), 단계 전이 추천(`transitionReady`)을 정형화된 JSON으로 수신하고 백엔드가 검증 후 단계를 전환합니다.
-6. **하이브리드 말랑이 추천 ([06-malangi-recommendation-logic](../../.scratch/emotional-dialogue/issues/06-malangi-recommendation-logic.md))**
+6. **하이브리드 말랑이 추천 및 자동 해금 ([06-malangi-recommendation-logic](../../.scratch/emotional-dialogue/issues/06-malangi-recommendation-logic.md))**
    - 추천 캐릭터 매핑(불안➔슬랑이, 속상함➔스퀴시, 분노➔왁뿌볼)은 백엔드 도메인 룰로 확정하고, 사용자 맞춤형 추천 사유 및 상담 요약은 LLM이 생성합니다.
-7. **회복 탄력성(Resilience) 및 폴백 메시지 ([07-llm-failure-and-fallback](../../.scratch/emotional-dialogue/issues/07-llm-failure-and-fallback.md))**
-   - 5초 타임아웃, 지수 백오프 기반 1회 즉시 재시도, 최종 실패 시 현재 단계에 맞춘 온화한 시스템 기본 안내 문장을 반환하여 대화가 중단되지 않도록 보호합니다.
+   - 추천된 말랑이가 잠겨있는 경우 상담 완료 트랜잭션에서 `user_malangis.is_unlocked = true`로 자동 해금하여 추천 즉시 플레이할 수 있도록 보장합니다.
+7. **단일 외부 호출 5초 타임아웃 및 폴백(Fallback) 안전망 ([07-llm-failure-and-fallback](../../.scratch/emotional-dialogue/issues/07-llm-failure-and-fallback.md))**
+   - **5초 타임아웃 적용 범위:** "전체 사용자 HTTP 요청"이 아닌 **"단일 외부 LLM API 호출(HTTP Client Read Timeout)"**에 5초를 적용합니다.
+   - 타임아웃 또는 일시적 API 오류 발생 시 지수 백오프 기반 1회 즉각 재시도합니다.
+   - 최종 실패 시 500 에러 화면을 노출하지 않고, 현재 세션의 `currentStep`에 맞추어 미리 준비된 온화한 시스템 기본 안내 문장(Fallback Message)을 반환하여 대화 흐름이 끊기지 않도록 방어합니다.
