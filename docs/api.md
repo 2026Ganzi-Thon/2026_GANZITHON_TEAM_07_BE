@@ -5,7 +5,7 @@
 ## 1. 개요 및 공통 규약
 
 테슬랑 서비스의 백엔드 API 계약을 정의한 문서입니다.
-**AI 대화 세션 기반 아키텍처**와 **마음 기록함 타임라인(Timeline Array)** 모델에 맞추어 설계되었습니다.
+**AI 대화 세션 생명주기 관리**, **마음 기록함 타임라인(Timeline Array)**, **JWT 인증(Refresh Token 포함)** 모델에 맞추어 설계되었습니다.
 
 - **Base URL:** `http://127.0.0.1:8080` (로컬) / 배포 URL 미정
 - **API 기본 경로:** `/api/v1`
@@ -43,18 +43,22 @@
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **시스템** | GET | `/api/v1/health` | 서버 헬스체크 | X | 기반 인프라 |
 | **인증** | POST | `/api/v1/auth/signup` | 이메일 회원가입 | X | F-00 |
-| **인증** | POST | `/api/v1/auth/login` | 로그인 및 JWT 토큰 발급 | X | F-00 |
+| **인증** | POST | `/api/v1/auth/login` | 로그인 및 Access/Refresh 토큰 발급 | X | F-00 |
+| **인증** | POST | `/api/v1/auth/refresh` | Refresh Token 기반 Access/Refresh 토큰 갱신 | X | F-00 |
+| **인증** | POST | `/api/v1/auth/logout` | 로그아웃 및 Refresh Token 폐기 | O | F-00 |
 | **인증** | GET | `/api/v1/auth/me` | 내 프로필 정보 조회 | O | F-00 |
 | **AI 세션** | POST | `/api/v1/counseling/sessions` | 상담 세션 생성 및 시작 (STEP 01~02) | O | F-01, F-02, F-07 |
 | **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/messages` | 메시지 전송 및 AI 답변 수신 (STEP 02~05) | O | F-02, F-03, F-09 |
-| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/complete` | 상담 종료, 사후 강도 입력, 결과/타임라인 확정 (STEP 06~07) | O | F-03, F-04, F-07, F-08 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/abort` | 사용자의 명시적 상담 중단 (조기 종료) | O | F-02 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/complete` | 상담 종료, 사후 강도 입력, 결과/타임라인 확정 및 말랑이 해금 | O | F-03, F-04, F-07, F-08 |
+| **AI 세션** | DELETE| `/api/v1/counseling/sessions/{sessionId}` | 세션 영구 삭제 (위기 세션, 진행 중 세션, 완료 세션 일괄 삭제) | O | F-08, F-09 |
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
 | **마음 기록함** | DELETE| `/api/v1/records/{resultId}` | 상담 기록 및 연관 세션 삭제 | O | F-08 |
 | **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
 | **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/select` | 메인 화면 대표 말랑이 변경 | O | F-05 |
-| **말랑이** | POST | `/api/v1/malangi/interactions` | 말랑이 인터랙션 시계열 로그 저장 (언제, 얼마 동안, 몇 번 만졌는지) | O | F-05, F-06 |
-| **말랑이** | GET | `/api/v1/malangi/interactions` | 최근 말랑이 조작 로그 조회 (타임스탬프 이력) | O | F-05 |
+| **말랑이** | POST | `/api/v1/malangi/interactions` | 말랑이 조작 시계열 로그 저장 (언제, 얼마 동안, 몇 번 만졌는지) | O | F-05, F-06 |
+| **말랑이** | GET | `/api/v1/malangi/interactions` | 최근 말랑이 조작 이력 조회 | O | F-05 |
 
 ---
 
@@ -73,7 +77,7 @@
 
 ---
 
-### 3-2. 사용자 인증 (F-00)
+### 3-2. 사용자 인증 및 토큰 관리 (F-00)
 
 #### [POST] `/api/v1/auth/signup` — 회원가입
 - **Request Body:**
@@ -110,7 +114,8 @@
 {
   "success": true,
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh...",
     "tokenType": "Bearer",
     "expiresIn": 86400,
     "userId": 1,
@@ -120,11 +125,44 @@
 }
 ```
 
+#### [POST] `/api/v1/auth/refresh` — 토큰 갱신 (Refresh Token Rotation)
+- **인증:** 없음
+- **Request Body:**
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+}
+```
+- **처리 규칙:** 기존 Refresh Token을 DB에서 검증 후 폐기(`is_revoked = true`) 처리하고, 새로운 Access Token과 새로운 Refresh Token을 한 쌍으로 발급합니다.
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_access...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_refresh...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400
+  },
+  "error": null
+}
+```
+
+#### [POST] `/api/v1/auth/logout` — 로그아웃 (토큰 폐기)
+- **인증:** 필요 (`Bearer <token>`)
+- **Request Body:**
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+}
+```
+- **응답 (HTTP 204 No Content):** (본문 없음)
+
 ---
 
 ### 3-3. AI 감정 상담 세션 및 실시간 대화 (F-01, F-02, F-03, F-07, F-09)
 
-#### [POST] `/api/v1/counseling/sessions` — 상담 세션 생성 및 시작 (STEP 01~02)
+#### [POST] `/api/v1/counseling/sessions` — 세션 생성 및 시작 (STEP 01~02)
 - **인증:** 필요 (`Bearer <token>`)
 - **Request Body:**
 ```json
@@ -140,6 +178,7 @@
   "success": true,
   "data": {
     "sessionId": 501,
+    "status": "IN_PROGRESS",
     "currentStep": "STEP_02",
     "aiMessage": "회의 중에 그런 소외감을 느끼셨군요. 정말 답답하고 서운하셨겠어요. 그때 상황에서 가장 먼저 머릿속에 떠오른 생각은 어떤 것이었나요?",
     "riskDetected": false
@@ -163,6 +202,7 @@
   "success": true,
   "data": {
     "sessionId": 501,
+    "status": "IN_PROGRESS",
     "currentStep": "STEP_03",
     "aiMessage": "그런 생각이 드셨다면 마음이 정말 위축되고 속상하셨을 것 같아요. 혹시 팀원들이 나를 무시해서가 아니라, 마감 시간 때문에 회의를 서둘러서 그랬을 가능성도 있을까요? 그 순간 내가 사실 가장 바랐던 건 무엇이었나요?",
     "riskDetected": false
@@ -171,14 +211,15 @@
 }
 ```
 
-#### 위기 신호 감지 시 특수 응답 규약 (F-09)
-위험 신호 감지 시 세션 상태는 `ABORTED_RISK`로 전환되고 다음 응답이 반환됩니다.
+#### 위기 신호 감지 시 응답 규약 (F-09)
+위기 신호 감지 시 `status`는 `ABORTED_RISK`로 전환되고 `currentStep`은 감지 당시 단계가 유지됩니다.
 ```json
 {
   "success": true,
   "data": {
     "sessionId": 501,
-    "currentStep": "ABORTED_RISK",
+    "status": "ABORTED_RISK",
+    "currentStep": "STEP_02",
     "aiMessage": "혼자 감당하지 않아도 괜찮아요. 지금은 마음의 문제를 해결하기보다 안전하게 도움을 받는 것이 중요해요.",
     "riskDetected": true,
     "emergencyHotlines": [
@@ -192,7 +233,25 @@
 }
 ```
 
-#### [POST] `/api/v1/counseling/sessions/{sessionId}/complete` — 상담 종료 및 마음 기록 산출 (STEP 06~07)
+#### [POST] `/api/v1/counseling/sessions/{sessionId}/abort` — 조기 종료
+- **인증:** 필요 (`Bearer <token>`)
+- **Path Parameter:** `sessionId`
+- **처리 내용:** 사용자가 중단 의사를 표현했을 때 세션 상태를 `ABORTED_USER`로 전환하고 당시까지의 슬롯을 보존합니다.
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 501,
+    "status": "ABORTED_USER",
+    "currentStep": "STEP_03",
+    "message": "상담이 중단되었습니다. 언제든 다시 대화를 시작하실 수 있어요."
+  },
+  "error": null
+}
+```
+
+#### [POST] `/api/v1/counseling/sessions/{sessionId}/complete` — 상담 완료, 결과 확정 및 말랑이 해금
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `sessionId`
 - **Request Body:**
@@ -201,6 +260,9 @@
   "postIntensity": 4
 }
 ```
+- **처리 내용:**
+  - 세션 `status`를 `COMPLETED`로 전환하고 `counseling_results` 레코드 및 `timeline` JSON을 확정 저장합니다.
+  - 추천된 말랑이가 잠겨있던 상태라면 `user_malangis`에서 자동으로 해금(`is_unlocked = true`)하고 `isNewlyUnlocked: true` 플래그를 반환합니다.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -208,6 +270,7 @@
   "data": {
     "resultId": 101,
     "sessionId": 501,
+    "status": "COMPLETED",
     "preIntensity": 8,
     "postIntensity": 4,
     "intensityChange": -4,
@@ -215,13 +278,19 @@
     "recommendedMalangi": {
       "type": "SQUISHY",
       "name": "스퀴시",
+      "isNewlyUnlocked": true,
       "reason": "속상하고 답답했던 마음을 부드럽게 감싸 안으며 천천히 환기해 보세요."
-    },
-    "status": "COMPLETED"
+    }
   },
   "error": null
 }
 ```
+
+#### [DELETE] `/api/v1/counseling/sessions/{sessionId}` — 세션 영구 삭제 (일원화)
+- **인증:** 필요 (`Bearer <token>`)
+- **Path Parameter:** `sessionId`
+- **처리 내용:** 세션의 상태(`IN_PROGRESS`, `ABORTED_RISK`, `ABORTED_USER`, `COMPLETED`)와 무관하게 해당 세션과 연관된 메시지 및 상담 결과를 DB에서 완전히 영구 삭제합니다.
+- **응답 (HTTP 204 No Content):** (본문 없음)
 
 ---
 
@@ -240,6 +309,7 @@
     "content": [
       {
         "resultId": 101,
+        "sessionId": 501,
         "createdAt": "2026-11-07T20:30:00",
         "primaryEmotion": "속상함",
         "preIntensity": 8,
@@ -258,7 +328,7 @@
 }
 ```
 
-#### [GET] `/api/v1/records/{resultId}` — 상담 결과 상세 조회 (타임라인 배열 포함)
+#### [GET] `/api/v1/records/{resultId}` — 상담 결과 상세 조회 (타임라인 포함)
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `resultId`
 - **응답 (HTTP 200 OK):**
@@ -383,7 +453,7 @@
 }
 ```
 
-#### [POST] `/api/v1/malangi/interactions` — 말랑이 조작 시계열 로그 저장 (언제 만졌는지 로깅)
+#### [POST] `/api/v1/malangi/interactions` — 말랑이 조작 시계열 로그 저장
 - **인증:** 필요 (`Bearer <token>`)
 - **Request Body:**
 ```json

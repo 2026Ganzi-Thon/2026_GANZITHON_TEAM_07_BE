@@ -4,18 +4,23 @@
 
 ## 1. 개요 및 설계 원칙
 
-테슬랑 서비스의 도메인 모델은 **AI 대화 세션의 실시간 턴 관리**, **시계열 감정·단계 변화 타임라인(Timeline Array)**, **마음 기록함**, **사용자 인증**, **말랑이 인벤토리(보유/선택) 및 인터랙션 시계열 로깅**을 안정적으로 저장하고 관리할 수 있도록 설계되었습니다.
+테슬랑 서비스의 도메인 모델은 **AI 대화 세션의 실시간 턴 및 진행 상태 관리**, **시계열 감정·단계 변화 타임라인(Timeline Array)**, **마음 기록함**, **JWT 토큰 생명주기 관리**, **말랑이 인벤토리 및 인터랙션 시계열 로깅**을 안정적으로 저장하고 관리할 수 있도록 설계되었습니다.
 
 - **DBMS:** MySQL 8.4 LTS
 - **ORM:** Spring Data JPA (`ddl-auto=validate`, 실 스키마는 마이그레이션 스크립트로 관리)
 - **문자셋/콜레이션:** `utf8mb4` / `utf8mb4_unicode_ci`
 - **핵심 아키텍처 원칙:**
-  - **세션(Session)과 결과(Result)의 분리:** 실시간 대화 흐름을 관리하는 `counseling_sessions`와 상담 완료 시 생성되는 최종 구조화 산출물인 `counseling_results`를 1:1로 분리하여 NULL 컬럼을 제거하고 조회 성능을 최적화합니다.
-  - **시계열 타임라인(Timeline Array) 채택 (MySQL JSON 타입):** 특정 메시지 시점부터 일어난 감정 강도 변화, 단계 전환, 인지적 통찰을 `counseling_results.timeline` JSON 배열 컬럼으로 저장하여 프론트엔드 타임라인 시각화에 최적화합니다.
-  - **말랑이 종류별 보유 관리 및 상세 로깅 체계:**
-    - `user_malangis`: 사용자가 보유/해금한 말랑이 목록과 현재 선택(장착)된 말랑이, 마지막 터치 시점을 관리합니다.
-    - `malangi_interaction_logs`: 언제(시작·종료 일시), 어떤 맥락(메인 환기, 상담 후 추천, 수면 모드)에서, 얼마나 만졌는지 상세히 시계열 로깅합니다.
-  - **위기 신호 안전 격리:** 위기 감지 세션(`risk_flag = true`, `status = 'ABORTED_RISK'`)은 결과 테이블을 생성하지 않아 통계에서 원천 배제됩니다.
+  - **세션(진행 중 상태)과 결과(최종 산출물)의 분리:**
+    - 대화 진행 중에는 `counseling_sessions.session_state` JSON 컬럼에 각 단계별 추출 슬롯과 타임라인 이벤트를 점진적으로 누적합니다.
+    - 상담 완료 시점에만 검증된 최종 산출물로서 `counseling_results` 레코드를 1회 생성합니다.
+  - **시계열 타임라인(Timeline Array) 채택:** 특정 메시지 시점부터 일어난 감정 강도 변화, 단계 전환, 인지적 통찰을 `timeline` JSON 배열로 보관합니다.
+  - **토큰 무효화 및 회전(Rotate) 관리:** `refresh_tokens` 테이블을 통해 안전한 토큰 재발급과 로그아웃 시 즉각적인 폐기를 보장합니다.
+  - **말랑이 추천 시 자동 해금(Unlock) 및 시계열 로깅:**
+    - 잠긴 말랑이가 추천되면 `user_malangis.is_unlocked = TRUE`로 즉시 해금합니다.
+    - `malangi_interaction_logs`에 정확한 시작/종료 일시를 기록합니다.
+  - **위기 신호 격리 및 삭제 일원화:**
+    - 위기 감지 세션(`risk_flag = true`, `status = 'ABORTED_RISK'`)은 `counseling_results`를 생성하지 않아 통계에서 원천 배제됩니다.
+    - 삭제는 `sessionId` 기준으로 연관된 메시지, 임시 상태, 완료 결과를 일괄 완전 삭제(Cascade)합니다.
 
 ---
 
@@ -23,13 +28,14 @@
 
 ```mermaid
 erDiagram
+    USERS ||--o{ REFRESH_TOKENS : "발급받는다"
     USERS ||--o{ COUNSELING_SESSIONS : "대화한다"
     USERS ||--o{ COUNSELING_RESULTS : "소유한다"
     USERS ||--o{ USER_MALANGIS : "보유한다"
     USERS ||--o{ MALANGI_INTERACTION_LOGS : "플레이한다"
-    COUNSELING_SESSIONS ||--o{ COUNSELING_MESSAGES : "메시지를_포함한다"
-    COUNSELING_SESSIONS ||--o| COUNSELING_RESULTS : "산출한다"
-    COUNSELING_SESSIONS ||--o{ MALANGI_INTERACTION_LOGS : "연계된다"
+    COUNSELING_SESSIONS ||--o{ COUNSELING_MESSAGES : "메시지 로그"
+    COUNSELING_SESSIONS ||--o| COUNSELING_RESULTS : "1:1 완료 산출"
+    COUNSELING_SESSIONS ||--o{ MALANGI_INTERACTION_LOGS : "연계"
 
     USERS {
         bigint id PK "회원 고유 식별자"
@@ -42,12 +48,22 @@ erDiagram
         datetime updated_at "수정 일시"
     }
 
+    REFRESH_TOKENS {
+        bigint id PK "토큰 고유 식별자"
+        bigint user_id FK "소유 회원 ID"
+        varchar token_hash UK "단방향 해시된 Refresh Token"
+        datetime expires_at "만료 일시"
+        boolean is_revoked "폐기/무효화 여부"
+        datetime created_at "발급 일시"
+    }
+
     COUNSELING_SESSIONS {
         bigint id PK "세션 고유 식별자"
         bigint user_id FK "사용자 ID"
         varchar current_step "현재 단계 (STEP_01 ~ STEP_07)"
-        varchar status "세션 상태 (IN_PROGRESS, COMPLETED, ABORTED_RISK)"
+        varchar status "상태 (IN_PROGRESS, COMPLETED, ABORTED_RISK, ABORTED_USER)"
         boolean risk_flag "위기 신호 감지 여부"
+        json session_state "진행 중 누적 슬롯 및 임시 타임라인 JSON"
         datetime started_at "시작 일시"
         datetime ended_at "종료 일시"
     }
@@ -107,9 +123,6 @@ erDiagram
 
 ### 3-1. `users` (회원 테이블)
 
-- **목적:** 회원 계정 정보 및 인증 식별자 관리
-- **관련 기능:** F-00 (사용자 인증 및 관리)
-
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 회원 고유 번호 |
@@ -123,9 +136,25 @@ erDiagram
 
 ---
 
-### 3-2. `counseling_sessions` (AI 대화 세션 테이블)
+### 3-2. `refresh_tokens` (JWT 갱신 토큰 테이블 ★신규)
 
-- **목적:** AI 감정 상담 세션(대화방)의 실시간 진행 상태와 생명주기 관리
+- **목적:** 토큰 회전(Rotation) 및 로그아웃 시 즉시 폐기(Revoke) 관리
+- **관련 기능:** F-00 (사용자 인증 및 세션 관리)
+
+| 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 토큰 식별자 |
+| `user_id` | BIGINT | N | FK (`users.id`) | — | 소유 회원 ID |
+| `token_hash` | VARCHAR(255) | N | UNIQUE | — | SHA-256 해시된 Refresh Token 값 |
+| `expires_at` | DATETIME(6) | N | — | — | 토큰 만료 일시 (발급 후 14일) |
+| `is_revoked` | BOOLEAN | N | — | FALSE | 로그아웃 또는 회전으로 폐기되었는지 여부 |
+| `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 발급 일시 |
+
+---
+
+### 3-3. `counseling_sessions` (AI 대화 세션 테이블)
+
+- **목적:** 실시간 대화 상태 머신, 진행 중 슬롯 및 임시 타임라인 저장
 - **관련 기능:** F-01, F-02, F-09
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
@@ -133,17 +162,44 @@ erDiagram
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 세션 고유 ID |
 | `user_id` | BIGINT | N | FK (`users.id`) | — | 참여 회원 ID |
 | `current_step` | VARCHAR(20) | N | — | 'STEP_01' | 현재 진행 단계 (`STEP_01` ~ `STEP_07`) |
-| `status` | VARCHAR(20) | N | — | 'IN_PROGRESS' | 세션 상태 (`IN_PROGRESS`, `COMPLETED`, `ABORTED_RISK`) |
+| `status` | VARCHAR(20) | N | — | 'IN_PROGRESS' | 세션 상태 (`IN_PROGRESS`, `COMPLETED`, `ABORTED_RISK`, `ABORTED_USER`) |
 | `risk_flag` | BOOLEAN | N | — | FALSE | 위기 신호 감지 여부 |
+| `session_state`| JSON | N | — | — | **진행 중 누적 슬롯 및 임시 타임라인 스냅샷 (상세 구조 아래 참조)** |
 | `started_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 세션 시작 일시 |
 | `ended_at` | DATETIME(6) | Y | — | NULL | 세션 종료 일시 |
 
+#### `session_state` JSON 구조 예시
+대화가 진행되는 동안 추출된 중간 슬롯과 타임라인 이벤트를 실시간으로 담아둡니다:
+```json
+{
+  "slots": {
+    "situation": "팀 회의에서 내 의견이 무시당한 것 같아 마음이 답답함",
+    "primaryEmotion": "속상함",
+    "preIntensity": 8,
+    "triggerFactor": "팀 프로젝트 회의 안건 패스",
+    "initialThought": "팀원들이 나를 무능하다고 생각하는구나",
+    "alternativeThought": "마감 시간이 촉박해서 안건을 서둘렀을 수 있다",
+    "underlyingNeed": "의견 존중 및 팀 기여 욕구",
+    "copingStrategy": "산책 또는 혼자 차분히 생각 정리",
+    "actionPlan": "다음 회의 전 메모로 먼저 공유하기"
+  },
+  "inProgressTimeline": [
+    {
+      "order": 1,
+      "triggerMessageId": 3,
+      "step": "STEP_02",
+      "emotion": "속상함",
+      "intensity": 8,
+      "thought": "팀원들이 나를 무능하다고 생각하는구나",
+      "timestamp": "2026-11-07T20:31:10"
+    }
+  ]
+}
+```
+
 ---
 
-### 3-3. `counseling_messages` (대화 메시지 로그 테이블)
-
-- **목적:** 세션 내부에서 주고받은 턴(Turn)별 실시간 발화 메시지 아카이빙
-- **관련 기능:** F-02, F-09
+### 3-4. `counseling_messages` (대화 메시지 로그 테이블)
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -157,10 +213,7 @@ erDiagram
 
 ---
 
-### 3-4. `counseling_results` (마음 기록함 / 상담 결과 테이블)
-
-- **목적:** 상담이 완료(`COMPLETED`)되었을 때 생성되는 최종 산출물 및 시계열 변화 기록
-- **관련 기능:** F-03, F-04, F-07, F-08
+### 3-5. `counseling_results` (마음 기록함 / 최종 상담 결과 테이블)
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -173,47 +226,39 @@ erDiagram
 | `post_intensity`| INT | Y | 0 ≤ 값 ≤ 10 | NULL | 대화 종료 후 감정 강도 |
 | `summary` | TEXT | Y | — | NULL | AI 상담 1~2줄 핵심 요약 |
 | `recommended_malangi`| VARCHAR(50)| Y | — | NULL | 추천 말랑이 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
-| `timeline` | JSON | N | — | — | 특정 메시지 기준 감정·단계 변화 배열 |
+| `timeline` | JSON | N | — | — | 특정 메시지 기준 감정·단계 변화 타임라인 배열 (세션 완료 시 확정 복사) |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 기록 일시 |
 
 ---
 
-### 3-5. `user_malangis` (사용자 말랑이 인벤토리 및 보유 현황 테이블 ★신규)
-
-- **목적:** 사용자가 종류별로 보유한 말랑이 목록, 해금 여부, 현재 선택된 대표 말랑이 및 누적 이용 통계 관리
-- **관련 기능:** F-04, F-05, F-10
+### 3-6. `user_malangis` (말랑이 인벤토리 테이블)
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 인벤토리 항목 ID |
 | `user_id` | BIGINT | N | FK (`users.id`) | — | 소유 회원 ID |
 | `malangi_type` | VARCHAR(50) | N | — | — | 말랑이 종류 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
-| `is_unlocked` | BOOLEAN | N | — | FALSE | 해금/보유 여부 (슬랑이는 기본 TRUE) |
-| `is_selected` | BOOLEAN | N | — | FALSE | 메인 화면에 선택(장착)된 말랑이 여부 |
-| `total_play_time`| INT | N | — | 0 | 해당 말랑이 누적 만진 시간 (초) |
-| `last_interacted_at`| DATETIME(6)| Y | — | NULL | 가장 최근에 만진 일시 (타임스탬프) |
+| `is_unlocked` | BOOLEAN | N | — | FALSE | **해금 여부 (상담 완료 시 추천되면 자동 TRUE로 전환)** |
+| `is_selected` | BOOLEAN | N | — | FALSE | 메인 화면 대표 말랑이 선택 여부 |
+| `total_play_time`| INT | N | — | 0 | 누적 만진 시간 (초) |
+| `last_interacted_at`| DATETIME(6)| Y | — | NULL | 가장 최근에 만진 일시 |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 획득/생성 일시 |
-
-- **유일성 제약:** `UNIQUE(user_id, malangi_type)` (한 사용자가 동일한 말랑이 종류를 중복 보유하지 않음)
 
 ---
 
-### 3-6. `malangi_interaction_logs` (말랑이 인터랙션 시계열 로그 테이블 ★신규/강화)
-
-- **목적:** 사용자가 언제, 어떤 말랑이를, 어떤 맥락에서, 얼마나 만졌는지를 정밀하게 시계열 로깅
-- **관련 기능:** F-05, F-06
+### 3-7. `malangi_interaction_logs` (말랑이 인터랙션 로그 테이블)
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 인터랙션 로그 ID |
 | `user_id` | BIGINT | N | FK (`users.id`) | — | 회원 ID |
-| `session_id` | BIGINT | Y | FK (`counseling_sessions.id`) | NULL | 연계된 상담 세션 ID (선택적) |
+| `session_id` | BIGINT | Y | FK (`counseling_sessions.id`) | NULL | 연계된 상담 세션 ID |
 | `malangi_type` | VARCHAR(50) | N | — | — | 만진 말랑이 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
 | `context_type` | VARCHAR(30) | N | — | 'MAIN' | 진입 맥락 (`MAIN`, `AFTER_COUNSELING`, `SLEEP_MODE`) |
-| `started_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | **만지기 시작한 정확한 일시** |
-| `ended_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | **만지기를 마친 정확한 일시** |
-| `duration_seconds`| INT | N | — | 0 | 만진 시간 (초 단위) |
-| `interaction_count`| INT | N | — | 0 | 터치/드래그/왁스깨기 총 횟수 |
+| `started_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 만지기 시작한 일시 |
+| `ended_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 만지기를 마친 일시 |
+| `duration_seconds`| INT | N | — | 0 | 만진 시간 (초) |
+| `interaction_count`| INT | N | — | 0 | 총 조작 횟수 |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 로그 저장 일시 |
 
 ---
@@ -223,23 +268,24 @@ erDiagram
 | 테이블명 | 인덱스 명칭 | 대상 컬럼 | 목적 및 선정 이유 |
 | :--- | :--- | :--- | :--- |
 | `users` | `uk_users_email` | `email` | 이메일 유일성 보장 및 로그인 조회 가속 |
+| `refresh_tokens` | `uk_token_hash` | `token_hash` | 토큰 조회 및 재발급 시 해시값 일치 검증 |
+| `refresh_tokens` | `idx_tokens_user` | `user_id`, `is_revoked` | 로그아웃 시 해당 회원의 모든 유효 토큰 일괄 폐기 |
 | `counseling_sessions` | `idx_sessions_user_status` | `user_id`, `status` | 사용자의 진행 중 세션 여부 고속 확인 |
-| `counseling_messages` | `idx_messages_session_id` | `session_id`, `created_at ASC` | 세션 대화창 진입 시 발화 이력 순차 로딩 |
-| `counseling_results` | `uk_results_session_id` | `session_id` | 세션당 단 1건의 결과 보장 (1:1 UNIQUE) |
+| `counseling_messages` | `idx_messages_session_id` | `session_id`, `created_at ASC` | 세션 발화 이력 순차 로딩 가속 |
+| `counseling_results` | `uk_results_session_id` | `session_id` | 세션당 단 1건의 결과 보장 (1:1) |
 | `counseling_results` | `idx_results_user_created` | `user_id`, `created_at DESC` | 마음 기록함 최신순 페이징 목록 조회 가속 |
 | `user_malangis` | `uk_user_malangi` | `user_id`, `malangi_type` | 사용자별 말랑이 보유 유일성 보장 |
-| `user_malangis` | `idx_user_malangi_selected`| `user_id`, `is_selected` | 메인 화면에 띄울 현재 활성 말랑이 즉시 조회 |
-| `malangi_interaction_logs` | `idx_logs_user_started` | `user_id`, `started_at DESC` | "언제 만졌는지" 사용자별 최근 조작 이력 시계열 조회 |
+| `malangi_interaction_logs` | `idx_logs_user_started` | `user_id`, `started_at DESC` | 사용자별 최근 조작 이력 시계열 조회 |
 
 ---
 
-## 5. 데이터 보관, 격리 및 삭제 정책
+## 5. 데이터 보관, 격리 및 삭제 일원화 정책
 
 1. **위험 신호 격리:**
-   - 위험 신호로 중단된 세션은 `counseling_sessions`에 `risk_flag = true` 및 `status = 'ABORTED_RISK'`로만 남고, **`counseling_results`는 아예 생성되지 않습니다.**
-   - 따라서 통계나 개인화 인사이트는 `counseling_results`를 대상으로 하므로 위험 대화가 원천 격리됩니다.
-2. **말랑이 인벤토리와 시계열 로그:**
-   - 회원 가입 시 기본 말랑이인 `SLANGI`(슬랑이)가 자동으로 `user_malangis`에 `is_unlocked = TRUE`, `is_selected = TRUE`로 등록됩니다.
-   - 조작할 때마다 `malangi_interaction_logs`에 정확한 시작/종료 일시(`started_at`, `ended_at`)가 기록되며, `user_malangis.last_interacted_at`과 누적 시간도 함께 갱신됩니다.
-3. **연쇄 삭제 (Cascade):**
-   - 회원 탈퇴 시 사용자의 모든 상담 결과, 세션, 메시지 로그, 말랑이 인벤토리 및 인터랙션 로그는 외래키 CASCADE를 통해 무결성을 유지하며 일괄 완전 삭제됩니다.
+   - 위기 감지 세션은 `counseling_sessions`에 `risk_flag = true`, `status = 'ABORTED_RISK'`로만 남고, `counseling_results`는 생성되지 않습니다.
+   - 통계 및 개인화 분석은 `counseling_results`만을 대상으로 하므로 위험 기록이 원천 배제됩니다.
+2. **세션 기반 일원화 삭제 정책:**
+   - 모든 상담 관련 데이터의 삭제 기준은 **`counseling_sessions.id` (세션 ID)**입니다.
+   - 세션 삭제 API(`DELETE /api/v1/counseling/sessions/{sessionId}`) 호출 시, 외래키 `ON DELETE CASCADE` 또는 서비스 트랜잭션에 의해 연관된 `counseling_messages`, `counseling_results`가 세션 상태(`IN_PROGRESS`, `ABORTED_RISK`, `COMPLETED`)와 무관하게 일괄 영구 삭제됩니다.
+3. **잠긴 말랑이 추천 시 자동 해금 규칙:**
+   - 상담 완료 트랜잭션에서 `recommended_malangi`에 해당하는 말랑이가 잠겨있을 경우(`is_unlocked = FALSE`), 동일 트랜잭션 내에서 `is_unlocked = TRUE`로 갱신하여 사용자가 추천 즉시 플레이할 수 있도록 보장합니다.
