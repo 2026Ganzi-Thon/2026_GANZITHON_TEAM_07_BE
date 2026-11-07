@@ -10,7 +10,7 @@
 
 ## 새 클론
 
-[VS Code 최초 설정](vscode.md)을 따릅니다. 저장소의 `.githooks/pre-push` 설치는
+[VS Code 최초 설정](vscode.md)을 따릅니다. 저장소의 Git 훅(`.githooks/pre-push`, `.githooks/pre-commit`) 설치는
 클론마다 한 번 필요합니다. 로컬 Git 설정은 커밋으로 자동 적용되지 않습니다.
 
 ## 기존 클론
@@ -36,7 +36,7 @@ git branch --set-upstream-to=origin/main main
    결과가 있으면 `git branch backup/local-main-before-migration main`처럼 보존하고,
    작업 브랜치로 전환한 다음 보존 여부를 확인한 후에만 로컬 main 참조를 팀 기준으로
    옮깁니다. `reset --hard`로 작업을 버리지 않습니다.
-5. 훅을 설치하고 `python3 scripts/test_pre_push.py`를 실행합니다. 이후에는
+5. 훅을 설치하고 `python3 scripts/test_pre_push.py` 및 `python3 scripts/test_pre_commit.py`를 실행합니다. 이후에는
    [협업 워크플로](agents/workflow.md)의 작업 브랜치·PR 절차를 따릅니다.
 
 원격 URL 변경과 fetch는 서버의 브랜치나 기존 PR을 삭제하지 않습니다. 다만

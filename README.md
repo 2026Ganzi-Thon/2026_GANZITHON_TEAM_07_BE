@@ -106,6 +106,8 @@ flowchart LR
 ```bash
 git clone https://github.com/2026Ganzi-Thon/2026_GANZITHON_TEAM_07_BE.git
 cd 2026_GANZITHON_TEAM_07_BE
+chmod +x .githooks/pre-push .githooks/pre-commit
+git config --local core.hooksPath "$PWD/.githooks"
 ```
 
 JDK 21과 Docker Compose v2를 준비한 뒤 실행합니다.

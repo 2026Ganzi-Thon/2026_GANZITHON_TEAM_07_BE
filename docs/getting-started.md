@@ -10,6 +10,15 @@
 
 팀 저장소 클론과 작업 브랜치 구성은 [협업 워크플로](agents/workflow.md), 편집기 설정은 [VS Code 협업 가이드](vscode.md)를 따릅니다.
 
+## Git 훅 설정
+
+클론 후 최초 1회 로컬 Git 훅을 활성화합니다. 커밋 전 시크릿 유출 및 Gradle 빌드 검증(`pre-commit`), 그리고 `main` 브랜치 직접 푸시 방지(`pre-push`)를 수행합니다.
+
+```bash
+chmod +x .githooks/pre-push .githooks/pre-commit
+git config --local core.hooksPath "$PWD/.githooks"
+```
+
 ## 로컬 실행
 
 프로젝트 루트에서 실행합니다. Windows에서는 `./gradlew` 대신 `gradlew.bat`를 사용합니다.
