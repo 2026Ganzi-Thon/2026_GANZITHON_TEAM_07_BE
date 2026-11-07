@@ -17,6 +17,7 @@
 ```bash
 cp .env.example .env
 # .env의 DB_PASSWORD, MYSQL_ROOT_PASSWORD를 로컬 비밀번호로 변경합니다.
+# AUTH_JWT_SECRET에는 `openssl rand -base64 32` 출력값을 넣습니다.
 docker compose up -d --wait mysql
 ./gradlew bootRun
 ```
@@ -32,7 +33,7 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 
 서버 기동 후 `curl http://127.0.0.1:8080/api/v1/health`로 `{"status":"UP"}`을 확인합니다. health는 인증 없이 접근하고 DB·LLM 상태를 조회하지 않습니다. Actuator health는 `http://127.0.0.1:8080/actuator/health`에서 확인할 수 있으며, HTTP에는 health만 노출되고 상세 정보는 숨깁니다. 현재 앱 기동에는 DB가 필요합니다.
 
-개발 기반 라이브러리(DevTools, Lombok, Flyway, Spring Security/JWT, Spring AI 공통 ChatClient API, Testcontainers, Actuator)는 설치되어 있습니다. Flyway에는 업무 테이블 마이그레이션이 없고, Security는 현재 모든 경로를 허용하므로 로그인·JWT 발급/검증 기능은 아직 제공하지 않습니다. Spring AI provider/model 설정도 없으므로 외부 AI 호출은 발생하지 않습니다. Swagger에는 health만 표시되고 감정 탐색 업무 API는 아직 없습니다.
+F-00 인증 API와 회원·토큰·말랑이 보유 테이블 마이그레이션이 구현되어 있습니다. 로컬·소셜 인증 모두 JWT 서명 키가 필요합니다. OAuth 로그인을 실제 사용하려면 공급자별 client ID/secret과 앱에 등록한 redirect URI를 `.env`에 설정해야 합니다. 설정이 비어 있어도 서버는 기동하지만 해당 공급자 로그인은 사용할 수 없습니다. Spring AI provider/model 설정은 아직 없어 외부 AI 호출은 발생하지 않습니다.
 
 ## 환경변수
 
@@ -47,9 +48,13 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 | DB_PASSWORD | 애플리케이션 DB 비밀번호 | 필수, `.env`에 설정 |
 | MYSQL_ROOT_PASSWORD | Compose MySQL 초기 root 비밀번호 | Compose 실행 시 필수 |
 | API_DOCS_ENABLED | OpenAPI 및 Swagger UI 공개 여부 | 기본 `false`, 로컬 예시 `true` |
+| AUTH_JWT_SECRET | JWT HS256 서명 키 (Base64) | 필수, 디코딩 후 32바이트 이상 |
+| KAKAO_CLIENT_ID / KAKAO_CLIENT_SECRET / KAKAO_REDIRECT_URI | Kakao OAuth 앱 설정 | OAuth 사용 시 필수 |
+| DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI | Discord OAuth 앱 설정 | OAuth 사용 시 필수 |
+| GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI | Google OAuth 앱 설정 | OAuth 사용 시 필수 |
 | LLM_PROVIDER / LLM_MODEL / LLM_API_KEY | 추후 LLM 연동용 예약 항목 | 빈 값, provider 선택·호출 미구현 |
 
-기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 현재 엔티티와 업무 테이블은 없으며 `ddl-auto=validate`이므로 Hibernate가 테이블을 자동 생성하지 않습니다. Flyway는 설치되어 있지만 업무 마이그레이션 파일은 아직 없습니다.
+기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 앱 시작 시 Flyway가 V1 인증 스키마를 적용하고, Hibernate `ddl-auto=validate`가 엔티티와 스키마를 검증합니다.
 
 Compose는 MySQL을 호스트의 `127.0.0.1`에만 노출합니다. 운영 배포·TLS·인증은 별도 설계 대상이며, 외부 바인딩이 필요하면 `SERVER_ADDRESS`를 환경에 맞게 지정합니다.
 

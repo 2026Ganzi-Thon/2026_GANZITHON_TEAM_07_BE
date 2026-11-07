@@ -29,9 +29,15 @@ class MySqlTestcontainersSmokeTests {
     Flyway flyway;
 
     @Test
-    void connectsToMySqlAndRunsFlywayWithoutBusinessMigrations() {
+    void connectsToMySqlAndRunsAuthenticationMigration() {
         assertThat(jdbcTemplate.queryForObject("SELECT VERSION()", String.class)).startsWith("8.4");
         assertThat(flyway.info().pending()).isEmpty();
-        assertThat(flyway.info().applied()).isEmpty();
+        assertThat(flyway.info().applied())
+                .extracting(migration -> migration.getVersion().getVersion())
+                .containsExactly("1");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                        + "AND table_name IN ('users', 'refresh_tokens', 'user_malangis')", Integer.class))
+                .isEqualTo(3);
     }
 }

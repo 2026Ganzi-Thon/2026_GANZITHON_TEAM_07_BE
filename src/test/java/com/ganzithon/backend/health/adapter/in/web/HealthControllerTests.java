@@ -9,6 +9,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,6 +28,9 @@ class HealthControllerTests {
     @Autowired
     ApplicationContext context;
 
+    @MockitoBean(name = "jwtDecoder")
+    JwtDecoder jwtDecoder;
+
     @Test
     void returnsUpWithoutCredentialsOrDatabase() throws Exception {
         assertThat(context.getBeansOfType(DataSource.class)).isEmpty();
@@ -38,7 +43,7 @@ class HealthControllerTests {
     @Test
     void doesNotExposeUnversionedHealth() throws Exception {
         mockMvc.perform(get("/health"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

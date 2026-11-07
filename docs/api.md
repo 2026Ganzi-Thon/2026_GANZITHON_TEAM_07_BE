@@ -81,6 +81,8 @@
 ### 3-2. 사용자 인증 및 토큰 관리 (F-00)
 
 #### [POST] `/api/v1/auth/signup` — 회원가입
+- **검증:** email 형식·최대 255자, password 8~72자(UTF-8 기준 최대 72바이트), nickname 최대 50자. 이메일은 앞뒤 공백 제거 후 소문자로 정규화합니다.
+- **중복 이메일:** HTTP 409 `EMAIL_ALREADY_REGISTERED`; 응답의 `data`에 기존 `existingProvider`와 정규화된 `registeredEmail`을 반환합니다.
 - **Request Body:**
 ```json
 {
@@ -129,6 +131,7 @@
 #### [POST] `/api/v1/auth/oauth/{provider}` — 소셜 로그인 (카카오, 디스코드, 구글)
 - **인증:** 없음
 - **Path Parameter:** `provider` (`kakao`, `discord`, `google`)
+- `redirectUri`는 서버 환경변수에 등록된 해당 공급자의 URI와 완전히 일치해야 합니다. 사용자 이메일을 제공하고 검증 완료 상태임을 공급자가 확인해 주는 계정만 허용합니다. 미검증 이메일은 로그인할 수 없습니다.
 - **Request Body:**
 ```json
 {
@@ -208,6 +211,13 @@
 }
 ```
 - **응답 (HTTP 204 No Content):** (본문 없음)
+
+#### [GET] `/api/v1/auth/me` — 내 프로필 조회
+- **인증:** 필요 (`Bearer <Access Token>`)
+- **응답 (HTTP 200 OK):** `userId`, `email`, `nickname`, `provider`를 포함한 공통 응답 envelope
+- Refresh Token은 인증 토큰으로 사용할 수 없습니다. 로그아웃은 요청한 사용자 소유의 활성 Refresh Token만 폐기합니다.
+
+인증 실패는 HTTP 401, 유효하지 않은 입력은 400, 동일 이메일 충돌은 409, OAuth 공급자 장애는 502로 반환합니다. 보호 API는 Access Token이 없거나 만료·위변조된 경우 401을 반환합니다.
 
 ---
 

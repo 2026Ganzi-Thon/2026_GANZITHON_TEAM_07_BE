@@ -20,6 +20,15 @@
 - Testcontainers JUnit Jupiter, MySQL, Spring Boot service connection 테스트 모듈을 추가하고 MySQL 8.4 기동·연결 및 Flyway 무마이그레이션 상태를 확인하는 smoke test를 둡니다. Docker가 없는 환경에서는 테스트를 건너뜁니다.
 - Actuator는 기본 health endpoint만 노출합니다. 상세 health 정보와 전체 endpoint는 공개하지 않습니다.
 
+## F-00 인증 구현 · 2026-11-08
+
+- 인증은 기능별 헥사고날 구조로 구현했습니다. OAuth 교환, JPA 저장, 비밀번호 해시, 토큰 발급·검증은 출력 어댑터에 두고 유스케이스는 포트에 의존합니다.
+- Access Token(24시간)과 Refresh Token(14일)은 HS256 JWT입니다. `AUTH_JWT_SECRET`은 Base64 디코딩 후 32바이트 이상이어야 합니다. Access/Refresh 토큰에 서로 다른 `tokenType` 검증기를 두어 토큰 혼용을 막습니다.
+- Refresh Token 원문은 저장하지 않고 SHA-256 해시를 저장합니다. 갱신·로그아웃은 DB 행 잠금으로 동시 회전을 직렬화합니다.
+- 소셜 로그인은 백엔드에서 authorization code를 공급자 토큰으로 교환하고 검증된 이메일을 조회합니다. redirect URI는 서버 설정값과 완전히 일치해야 합니다.
+- 동일 이메일의 계정 자동 병합은 하지 않으며 HTTP 409로 기존 공급자 로그인을 안내합니다. 실제 공급자 앱 등록 및 end-to-end OAuth 검증은 각 환경의 자격 증명이 준비된 뒤 수행해야 합니다.
+- F-00의 핵심 경로는 H2 기반 API 테스트와 OAuth HTTP 모킹 테스트로 검증합니다. MySQL/Testcontainers 결과는 해당 검증 실행 후 기록합니다.
+
 근거: [Spring AI 시작하기](https://docs.spring.io/spring-ai/reference/getting-started.html), [Spring Boot DevTools](https://docs.spring.io/spring-boot/reference/using/devtools.html), [Flyway 설정](https://docs.spring.io/spring-boot/how-to/data-initialization.html), [JWT Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [Testcontainers](https://docs.spring.io/spring-boot/reference/testing/testcontainers.html), [Actuator endpoint](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html).
 
 근거: [Spring Boot 요구사항](https://docs.spring.io/spring-boot/system-requirements.html), [Gradle Java 호환성](https://docs.gradle.org/current/userguide/compatibility.html), [MySQL LTS 안내](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html).
