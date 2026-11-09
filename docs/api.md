@@ -56,10 +56,12 @@
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
 | **마음 기록함** | DELETE| `/api/v1/records/{resultId}` | 상담 기록 및 연관 세션 삭제 | O | F-08 |
-| **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
+| **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록, 고유 상태 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
 | **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/select` | 메인 화면 대표 말랑이 변경 | O | F-05 |
-| **말랑이** | POST | `/api/v1/malangi/interactions` | 말랑이 조작 시계열 로그 저장 (언제, 얼마 동안, 몇 번 만졌는지) | O | F-05, F-06 |
-| **말랑이** | GET | `/api/v1/malangi/interactions` | 최근 말랑이 조작 이력 조회 | O | F-05 |
+| **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/state` | 말랑이 고유 상태 갱신 (왁뿌볼 왁스 깨짐 단계 등) | O | F-05 |
+| **말랑이** | POST | `/api/v1/malangi/sessions/start` | 말랑이 만지기 세션 시작 (세션 ID 발급) | O | F-05, F-06 |
+| **말랑이** | POST | `/api/v1/malangi/sessions/{sessionId}/end` | 말랑이 만지기 세션 종료 및 조작 집계 (사용 종료하기) | O | F-05, F-06 |
+| **말랑이** | GET | `/api/v1/malangi/sessions` | 최근 말랑이 만지기 세션 이력 조회 | O | F-05, F-06 |
 
 ---
 
@@ -229,11 +231,13 @@
 - **Request Body:**
 ```json
 {
+  "malangiSessionId": 302,
   "situation": "팀 회의에서 내 의견이 가볍게 무시당한 것 같아 마음이 무겁고 답답해요.",
   "primaryEmotion": "속상함",
   "preIntensity": 8
 }
 ```
+- `malangiSessionId`는 선택(Nullable) 필드로, 말랑이 만지기 화면에서 '감정 정리하기'를 통해 진입한 경우 직전 말랑이 세션 ID를 전달하여 환기 후 상담 연계 흐름을 기록합니다.
 - **응답 (HTTP 201 Created):**
 ```json
 {
@@ -460,9 +464,9 @@
 
 ---
 
-### 3-5. 말랑이 인벤토리 및 인터랙션 시계열 로깅 (F-04, F-05, F-06)
+### 3-5. 말랑이 인벤토리, 상태 관리 및 만지기 세션 라이프사이클 (F-04, F-05, F-06)
 
-#### [GET] `/api/v1/malangis` — 보유 말랑이 목록 및 선택 상태 조회
+#### [GET] `/api/v1/malangis` — 보유 말랑이 목록, 상태 및 선택 정보 조회
 - **인증:** 필요 (`Bearer <token>`)
 - **응답 (HTTP 200 OK):**
 ```json
@@ -475,6 +479,7 @@
         "name": "슬랑이",
         "isUnlocked": true,
         "isSelected": true,
+        "customState": {},
         "totalPlayTime": 450,
         "lastInteractedAt": "2026-11-07T22:15:30"
       },
@@ -483,6 +488,7 @@
         "name": "스퀴시",
         "isUnlocked": true,
         "isSelected": false,
+        "customState": {},
         "totalPlayTime": 180,
         "lastInteractedAt": "2026-11-07T20:45:00"
       },
@@ -491,6 +497,9 @@
         "name": "왁뿌볼",
         "isUnlocked": false,
         "isSelected": false,
+        "customState": {
+          "crackedStage": 0
+        },
         "totalPlayTime": 0,
         "lastInteractedAt": null
       }
@@ -516,18 +525,40 @@
 }
 ```
 
-#### [POST] `/api/v1/malangi/interactions` — 말랑이 조작 시계열 로그 저장
+#### [PATCH] `/api/v1/malangis/{malangiType}/state` — 말랑이 고유 상태 갱신 (왁스 깨짐 등)
 - **인증:** 필요 (`Bearer <token>`)
+- **Path Parameter:** `malangiType` (`SLANGI`, `SQUISHY`, `WAKPPU`)
 - **Request Body:**
 ```json
 {
-  "sessionId": 501,
-  "malangiType": "SQUISHY",
-  "contextType": "AFTER_COUNSELING",
-  "startedAt": "2026-11-07T20:38:10",
-  "endedAt": "2026-11-07T20:40:10",
-  "durationSeconds": 120,
-  "interactionCount": 35
+  "customState": {
+    "crackedStage": 2
+  }
+}
+```
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "malangiType": "WAKPPU",
+    "customState": {
+      "crackedStage": 2
+    },
+    "updatedAt": "2026-11-07T22:25:00"
+  },
+  "error": null
+}
+```
+
+#### [POST] `/api/v1/malangi/sessions/start` — 말랑이 만지기 세션 시작
+- **인증:** 필요 (`Bearer <token>`)
+- **설명:** 메인 화면 또는 퀵 메뉴에서 말랑이를 터치해 만지기 화면으로 진입할 때 호출하여 만지기 세션을 오픈합니다.
+- **Request Body:**
+```json
+{
+  "malangiType": "WAKPPU",
+  "contextType": "MAIN"
 }
 ```
 - **응답 (HTTP 201 Created):**
@@ -535,36 +566,78 @@
 {
   "success": true,
   "data": {
-    "logId": 1024,
-    "malangiType": "SQUISHY",
-    "startedAt": "2026-11-07T20:38:10",
-    "endedAt": "2026-11-07T20:40:10",
-    "durationSeconds": 120,
-    "interactionCount": 35,
-    "totalPlayTime": 300
+    "sessionId": 302,
+    "malangiType": "WAKPPU",
+    "status": "IN_PROGRESS",
+    "contextType": "MAIN",
+    "startedAt": "2026-11-07T22:20:10",
+    "customState": {
+      "crackedStage": 0
+    }
   },
   "error": null
 }
 ```
 
-#### [GET] `/api/v1/malangi/interactions` — 최근 말랑이 조작 이력 조회
+#### [POST] `/api/v1/malangi/sessions/{sessionId}/end` — 말랑이 만지기 세션 종료 및 조작 집계
 - **인증:** 필요 (`Bearer <token>`)
-- **Query Parameters:**
-  - `limit`: 조회할 로그 개수 (기본값: 10)
+- **Path Parameter:** `sessionId` (말랑이 세션 ID)
+- **설명:** 만지기 화면에서 '사용 종료하기', '감정 정리하기(상담 이동)', '수면 모드' 등을 눌러 이탈할 때 호출합니다. 클라이언트에서 집계한 인터랙션 카운트와 체류 시간을 일괄 반영하며, 필요 시 변경된 말랑이 상태(`customState`)도 함께 동기화합니다.
+- **Request Body:**
+```json
+{
+  "endedAt": "2026-11-07T22:23:40",
+  "durationSeconds": 210,
+  "touchCount": 45,
+  "longPressCount": 12,
+  "dragCount": 20,
+  "endReason": "TO_COUNSELING",
+  "customState": {
+    "crackedStage": 3
+  }
+}
+```
+- `endReason`: `EXIT` (단순 종료/메인 복귀), `TO_COUNSELING` (감정 정리하기 상담 연계), `TO_SLEEP` (수면 모드 전환)
 - **응답 (HTTP 200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "logs": [
+    "sessionId": 302,
+    "malangiType": "WAKPPU",
+    "status": "COMPLETED",
+    "durationSeconds": 210,
+    "touchCount": 45,
+    "longPressCount": 12,
+    "dragCount": 20,
+    "totalInteractionCount": 77,
+    "endReason": "TO_COUNSELING",
+    "totalPlayTime": 210
+  },
+  "error": null
+}
+```
+
+#### [GET] `/api/v1/malangi/sessions` — 최근 말랑이 만지기 세션 이력 조회
+- **인증:** 필요 (`Bearer <token>`)
+- **Query Parameters:**
+  - `limit`: 조회할 세션 개수 (기본값: 10)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
       {
-        "logId": 1024,
-        "malangiType": "SQUISHY",
-        "contextType": "AFTER_COUNSELING",
-        "startedAt": "2026-11-07T20:38:10",
-        "endedAt": "2026-11-07T20:40:10",
-        "durationSeconds": 120,
-        "interactionCount": 35
+        "sessionId": 302,
+        "malangiType": "WAKPPU",
+        "status": "COMPLETED",
+        "contextType": "MAIN",
+        "startedAt": "2026-11-07T22:20:10",
+        "endedAt": "2026-11-07T22:23:40",
+        "durationSeconds": 210,
+        "totalInteractionCount": 77,
+        "endReason": "TO_COUNSELING"
       }
     ]
   },
