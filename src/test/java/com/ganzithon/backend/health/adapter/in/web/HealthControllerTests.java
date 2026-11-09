@@ -1,6 +1,7 @@
 package com.ganzithon.backend.health.adapter.in.web;
 
 import com.ganzithon.backend.config.HealthConfig;
+import com.ganzithon.backend.config.SecurityConfig;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(HealthController.class)
-@Import(HealthConfig.class)
+@Import({HealthConfig.class, SecurityConfig.class})
 class HealthControllerTests {
 
     @Autowired
@@ -24,6 +27,9 @@ class HealthControllerTests {
 
     @Autowired
     ApplicationContext context;
+
+    @MockitoBean(name = "jwtDecoder")
+    JwtDecoder jwtDecoder;
 
     @Test
     void returnsUpWithoutCredentialsOrDatabase() throws Exception {
@@ -37,7 +43,7 @@ class HealthControllerTests {
     @Test
     void doesNotExposeUnversionedHealth() throws Exception {
         mockMvc.perform(get("/health"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

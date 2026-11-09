@@ -28,7 +28,7 @@
 | Data | MySQL 8.4 LTS / Spring Data JPA | 연결 설정 및 로컬 Compose 제공 |
 | API Documentation | springdoc 3.2.0 / Swagger UI | 로컬 활성화 |
 | LLM | | 미정 |
-| Security | 미정 | 인증·인가 요구사항에 따라 결정 |
+| Security | Spring Security / JWT | F-00 인증·인가 구현 |
 | Infrastructure | 미정 | 배포 환경 선정 필요 |
 | CI | GitHub Actions | PR 및 main push 시 훅·Java 21·MySQL 8.4 검사 |
 | Deployment | 미정 | 배포 방식 선정 필요 |
@@ -37,15 +37,16 @@
 
 ## 🗺️ 시스템 아키텍처 (System Architecture)
 
-아래는 초기 구성입니다. 기능별 헥사고날 구조와 health API를 제공하며 감정 탐색 업무 API·LLM 연동은 미구현입니다.
+기능별 헥사고날 구조를 사용합니다. F-00 인증 API와 health API를 제공하며 감정 탐색 업무 API·LLM 연동은 미구현입니다.
 
 ```mermaid
 flowchart LR
     Client[클라이언트] --> Backend[Spring Boot 4.1 · Java 21]
+    Backend --> Auth[인증 · JWT]
     Backend --> DB[(MySQL 8.4)]
 ```
 
-단일 Gradle 모듈에서 기능별 `domain / application / adapter` 구조를 사용하고 어댑터가 안쪽 application 포트에 의존하도록 구성합니다. 실제 도메인·출력 어댑터는 기능 구현 시 추가합니다.
+단일 Gradle 모듈에서 기능별 `domain / application / adapter` 구조를 사용하고 어댑터가 안쪽 application 포트에 의존하도록 구성합니다. 인증 도메인과 DB·OAuth·JWT 어댑터가 구현되어 있습니다.
 
 구성 요소와 통신 방식은 [시스템 아키텍처](docs/architecture.md)에 정리합니다.
 
@@ -59,9 +60,9 @@ flowchart LR
 
 ## ✨ 핵심 기능 및 구현 상세 (Core Features)
 
-- **사용자 인증 및 관리 (F-00, MVP 필수):** 이메일/소셜 로그인 및 토큰 발급
+- **사용자 인증 및 관리 (F-00, MVP 필수, 구현 완료):** 이메일·카카오·디스코드·구글 로그인, JWT 갱신·로그아웃, 내 프로필 조회
 - **7단계 AI 감정 대화 (F-01~F-03, F-07, MVP 필수):** CBT·소크라테스·SFBT·NVC 기반 문답, 감정 강도 전/후 측정, 대안적 사고 및 작은 실천 도출
-- **맞춤형 말랑이 추천 및 인터랙션 (F-04~F-06, F-10, MVP 필수):** 감정별 말랑이(슬랑이, 스퀴시, 왁뿌볼) 추천, 터치·드래그 조작 및 ASMR
+- **맞춤형 말랑이 추천 및 인터랙션 (F-04~F-06, F-10, MVP 필수):** 보유 목록·대표 말랑이 선택 API 구현, 감정별 추천과 터치·드래그 조작 및 ASMR은 미구현
 - **마음 기록함 (F-08, MVP 필수):** 날짜별 상담 결과, 감정 변화, 실천 행동 저장 및 상세 조회
 - **위기 신호 감지 및 안전 안내 (F-09, MVP 필수):** 자해·자살·타해 등 위기 감지 시 즉시 중단 및 긴급 상담 핫라인(109, 1577-0199 등) 연계
 - **장기 통계 및 패턴 분석 (F-11~F-13, 후순위):** 누적 데이터 기반 월별 감정 통계, 자동적 사고 경향 및 개인화 인사이트
@@ -72,7 +73,7 @@ flowchart LR
 
 ## 📑 API 명세서 (API Documentation)
 
-요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. 서버 확인용 `GET /api/v1/health`가 `{"status":"UP"}`을 반환합니다. 감정 탐색 업무 API는 아직 없으며, 로컬 실행 후 [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html)에서 추가되는 API를 확인할 수 있습니다.
+요청·응답 형식, 인증 조건, 오류 응답은 [API 명세서](docs/api.md)에서 관리합니다. `GET /api/v1/health`, F-00 인증 API, 말랑이 인벤토리 조회·선택 API를 제공합니다. 감정 탐색 업무 API는 아직 없으며, 로컬 실행 후 [Swagger UI](http://127.0.0.1:8080/swagger-ui/index.html)에서 API를 확인할 수 있습니다.
 
 <br />
 

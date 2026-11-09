@@ -8,10 +8,23 @@
 
 ```mermaid
 flowchart LR
-    Client[클라이언트] --> Web[health.adapter.in.web]
-    Web --> Port[health.application.port.in]
-    Service[health.application.service] -. 구현 .-> Port
-    Config[config · Spring 조립] -. 생성 .-> Service
+    Client[클라이언트] --> AuthWeb[auth.adapter.in.web]
+    Client --> MalangiWeb[malangi.adapter.in.web]
+    Client --> HealthWeb[health.adapter.in.web]
+    AuthWeb --> AuthPort[auth.application.port.in]
+    AuthService[auth.application.service] -. 구현 .-> AuthPort
+    AuthService --> AuthOut[auth.application.port.out]
+    AuthOut --> Adapters[OAuth · JPA · JWT 어댑터]
+    MalangiWeb --> MalangiPort[malangi.application.port.in]
+    MalangiService[malangi.application.service] -. 구현 .-> MalangiPort
+    MalangiService --> MalangiInventoryStore[MalangiInventoryStore]
+    MalangiInventoryStore --> MalangiInventoryAdapter[MalangiInventoryPersistenceAdapter]
+    MalangiService --> MalangiSessionStore[MalangiSessionStore]
+    MalangiSessionStore --> MalangiSessionAdapter[MalangiSessionPersistenceAdapter]
+    HealthWeb --> HealthPort[health.application.port.in]
+    HealthService[health.application.service] -. 구현 .-> HealthPort
+    Config[config · Spring 조립] -. 생성 .-> AuthService
+    Config -. 생성 .-> MalangiService
 ```
 
 ## 패키지와 책임
@@ -22,6 +35,17 @@ flowchart LR
 backend/
 ├── GanzithonApplication.java
 ├── config/                         # Spring bean 조립, OpenAPI 설정
+├── common/adapter/in/web/          # 공통 API envelope
+├── auth/                            # F-00 인증 유스케이스와 어댑터
+│   ├── domain/
+│   ├── application/port/{in,out}/
+│   ├── application/service/
+│   └── adapter/{in/web,out/{oauth,persistence,security}}/
+├── malangi/                         # 인벤토리 조회·대표 종류 선택
+│   ├── domain/
+│   ├── application/port/{in,out}/
+│   ├── application/service/
+│   └── adapter/{in/web,out/persistence}/
 └── health/
     ├── adapter/in/web/              # HTTP 요청·응답과 Swagger 명세
     └── application/
@@ -49,9 +73,14 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 ## 현재 기능 및 외부 연동
 
 - `GET /api/v1/health`: 인증 없이 서버의 HTTP 응답 확인, DB·LLM 조회 없음
-- MySQL 8.4 / JPA: 기존 연결 설정 유지. 아직 엔티티·테이블 없음
+- F-00: 이메일·비밀번호 인증, Kakao/Discord/Google Authorization Code 로그인, Refresh Token 회전·로그아웃, `/me` 프로필 조회 제공
+- F-04/F-05 일부: 말랑이 인벤토리 조회·선택, 고유 상태 저장, 만지기 세션 시작·종료·이력 API 제공; 감정 기반 추천, 실제 터치 인터랙션, 상담 세션 연계는 미구현
+- MySQL 8.4 / JPA / Flyway: 회원·Refresh Token·말랑이 보유 테이블을 V1으로 생성, V2에서 기존 회원의 기본 SLANGI 보정, V3에서 말랑이 상태 JSON과 만지기 세션 테이블 추가
+- Spring Security / JWT Resource Server: 인증·OAuth 공개 경로 외에는 Access Token을 요구하며 Refresh Token은 API 인증에 사용할 수 없음
+- Spring AI: Boot 4 호환 BOM과 공통 ChatClient API만 설치됨. provider/model 설정과 외부 호출은 미구현
+- Actuator: 기본 health endpoint만 HTTP 노출
 - Swagger UI와 OpenAPI: 기존 경로 유지, 기본 비활성화·로컬 활성화
-- LLM, 인증, 배포 환경: 미정
+- LLM provider/model 및 배포 환경: 미정
 
 앱 API는 컨트롤러에서 `/api/v1` 경로를 사용합니다. servlet context path를
 전역으로 설정하지 않아 Swagger UI와 `/v3/api-docs`는 이동하지 않습니다.

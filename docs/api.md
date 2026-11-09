@@ -44,6 +44,7 @@
 | **시스템** | GET | `/api/v1/health` | 서버 헬스체크 | X | 기반 인프라 |
 | **인증** | POST | `/api/v1/auth/signup` | 이메일 회원가입 | X | F-00 |
 | **인증** | POST | `/api/v1/auth/login` | 로그인 및 Access/Refresh 토큰 발급 | X | F-00 |
+| **인증** | POST | `/api/v1/auth/oauth/{provider}` | 소셜 로그인 (카카오, 디스코드, 구글) | X | F-00 |
 | **인증** | POST | `/api/v1/auth/refresh` | Refresh Token 기반 Access/Refresh 토큰 갱신 | X | F-00 |
 | **인증** | POST | `/api/v1/auth/logout` | 로그아웃 및 Refresh Token 폐기 | O | F-00 |
 | **인증** | GET | `/api/v1/auth/me` | 내 프로필 정보 조회 | O | F-00 |
@@ -55,10 +56,12 @@
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
 | **마음 기록함** | DELETE| `/api/v1/records/{resultId}` | 상담 기록 및 연관 세션 삭제 | O | F-08 |
-| **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
+| **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록, 고유 상태 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
 | **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/select` | 메인 화면 대표 말랑이 변경 | O | F-05 |
-| **말랑이** | POST | `/api/v1/malangi/interactions` | 말랑이 조작 시계열 로그 저장 (언제, 얼마 동안, 몇 번 만졌는지) | O | F-05, F-06 |
-| **말랑이** | GET | `/api/v1/malangi/interactions` | 최근 말랑이 조작 이력 조회 | O | F-05 |
+| **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/state` | 말랑이 고유 상태 갱신 (왁뿌볼 왁스 깨짐 단계 등) | O | F-05 |
+| **말랑이** | POST | `/api/v1/malangi/sessions/start` | 말랑이 만지기 세션 시작 (세션 ID 발급) | O | F-05, F-06 |
+| **말랑이** | POST | `/api/v1/malangi/sessions/{sessionId}/end` | 말랑이 만지기 세션 종료 및 조작 집계 (사용 종료하기) | O | F-05, F-06 |
+| **말랑이** | GET | `/api/v1/malangi/sessions` | 최근 말랑이 만지기 세션 이력 조회 | O | F-05, F-06 |
 
 ---
 
@@ -80,6 +83,9 @@
 ### 3-2. 사용자 인증 및 토큰 관리 (F-00)
 
 #### [POST] `/api/v1/auth/signup` — 회원가입
+- **검증:** email 형식·최대 255자, password 8~72자(UTF-8 기준 최대 72바이트), nickname 최대 50자. 이메일은 앞뒤 공백 제거 후 소문자로 정규화합니다.
+- **중복 이메일:** HTTP 409 `EMAIL_ALREADY_REGISTERED`; 응답의 `data`에 기존 `existingProvider`와 정규화된 `registeredEmail`을 반환합니다.
+- 가입 완료 시 기본 말랑이 `SLANGI`를 해금 및 선택 상태로 지급합니다.
 - **Request Body:**
 ```json
 {
@@ -125,6 +131,57 @@
 }
 ```
 
+#### [POST] `/api/v1/auth/oauth/{provider}` — 소셜 로그인 (카카오, 디스코드, 구글)
+- **인증:** 없음
+- **Path Parameter:** `provider` (`kakao`, `discord`, `google`)
+- `redirectUri`는 서버 환경변수에 등록된 해당 공급자의 URI와 완전히 일치해야 합니다. 사용자 이메일을 제공하고 검증 완료 상태임을 공급자가 확인해 주는 계정만 허용합니다. 미검증 이메일은 로그인할 수 없습니다.
+- **Request Body:**
+```json
+{
+  "authorizationCode": "4/0AY0e-g7...",
+  "redirectUri": "http://localhost:3000/oauth/callback/kakao"
+}
+```
+- **처리 규칙:**
+  1. 백엔드가 해당 공급자(OAuth2 Provider)의 토큰/프로필 엔드포인트와 통신하여 `providerId`, `email`, `nickname`을 획득합니다.
+  2. **동일 이메일 가입 거부 정책:** DB에 이미 동일한 이메일을 가진 계정이 존재하고 공급자가 일치하지 않는 경우, 가입을 거부하고 기존 가입된 공급자(`existingProvider`)로 로그인하도록 안내합니다 (HTTP 409 Conflict).
+  3. **신규 가입 (JIT):** 동일 이메일이 없는 경우 즉시 회원 레코드를 생성하고, 기본 말랑이(`SLANGI`, 슬랑이)를 자동 해금(`is_unlocked = true`, `is_selected = true`) 등록한 뒤 서비스 JWT 쌍을 발급합니다 (`isNewUser: true`).
+  4. **기존 가입:** 이미 해당 소셜로 가입된 회원이면 즉시 로그인 처리 후 JWT 쌍을 발급합니다 (`isNewUser: false`).
+
+- **성공 응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh...",
+    "tokenType": "Bearer",
+    "expiresIn": 86400,
+    "userId": 2,
+    "email": "user@kakao.com",
+    "nickname": "카카오친구",
+    "provider": "KAKAO",
+    "isNewUser": true
+  },
+  "error": null
+}
+```
+
+- **실패 응답 — 동일 이메일이 이미 존재하는 경우 (HTTP 409 Conflict):**
+```json
+{
+  "success": false,
+  "data": {
+    "existingProvider": "LOCAL",
+    "registeredEmail": "user@example.com"
+  },
+  "error": {
+    "code": "EMAIL_ALREADY_REGISTERED",
+    "message": "이미 해당 이메일로 가입된 계정이 있습니다. LOCAL 계정으로 로그인해 주세요."
+  }
+}
+```
+
 #### [POST] `/api/v1/auth/refresh` — 토큰 갱신 (Refresh Token Rotation)
 - **인증:** 없음
 - **Request Body:**
@@ -158,6 +215,13 @@
 ```
 - **응답 (HTTP 204 No Content):** (본문 없음)
 
+#### [GET] `/api/v1/auth/me` — 내 프로필 조회
+- **인증:** 필요 (`Bearer <Access Token>`)
+- **응답 (HTTP 200 OK):** `userId`, `email`, `nickname`, `provider`를 포함한 공통 응답 envelope
+- Refresh Token은 인증 토큰으로 사용할 수 없습니다. 로그아웃은 요청한 사용자 소유의 활성 Refresh Token만 폐기합니다.
+
+인증 실패는 HTTP 401, 유효하지 않은 입력은 400, 동일 이메일 충돌은 409, OAuth 공급자 장애는 502로 반환합니다. 보호 API는 Access Token이 없거나 만료·위변조된 경우 401을 반환합니다.
+
 ---
 
 ### 3-3. AI 감정 상담 세션 및 실시간 대화 (F-01, F-02, F-03, F-07, F-09)
@@ -167,11 +231,13 @@
 - **Request Body:**
 ```json
 {
+  "malangiSessionId": 302,
   "situation": "팀 회의에서 내 의견이 가볍게 무시당한 것 같아 마음이 무겁고 답답해요.",
   "primaryEmotion": "속상함",
   "preIntensity": 8
 }
 ```
+- `malangiSessionId`는 선택(Nullable) 필드로, 말랑이 만지기 화면에서 '감정 정리하기'를 통해 진입한 경우 직전 말랑이 세션 ID를 전달하여 환기 후 상담 연계 흐름을 기록합니다.
 - **응답 (HTTP 201 Created):**
 ```json
 {
@@ -398,9 +464,9 @@
 
 ---
 
-### 3-5. 말랑이 인벤토리 및 인터랙션 시계열 로깅 (F-04, F-05, F-06)
+### 3-5. 말랑이 인벤토리, 상태 관리 및 만지기 세션 라이프사이클 (F-04, F-05, F-06)
 
-#### [GET] `/api/v1/malangis` — 보유 말랑이 목록 및 선택 상태 조회
+#### [GET] `/api/v1/malangis` — 보유 말랑이 목록, 상태 및 선택 정보 조회
 - **인증:** 필요 (`Bearer <token>`)
 - **응답 (HTTP 200 OK):**
 ```json
@@ -413,6 +479,7 @@
         "name": "슬랑이",
         "isUnlocked": true,
         "isSelected": true,
+        "customState": {},
         "totalPlayTime": 450,
         "lastInteractedAt": "2026-11-07T22:15:30"
       },
@@ -421,6 +488,7 @@
         "name": "스퀴시",
         "isUnlocked": true,
         "isSelected": false,
+        "customState": {},
         "totalPlayTime": 180,
         "lastInteractedAt": "2026-11-07T20:45:00"
       },
@@ -429,6 +497,9 @@
         "name": "왁뿌볼",
         "isUnlocked": false,
         "isSelected": false,
+        "customState": {
+          "crackedStage": 0
+        },
         "totalPlayTime": 0,
         "lastInteractedAt": null
       }
@@ -441,6 +512,7 @@
 #### [PATCH] `/api/v1/malangis/{malangiType}/select` — 대표 말랑이 변경
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `malangiType` (`SLANGI`, `SQUISHY`, `WAKPPU`)
+- 잠긴 말랑이는 HTTP 409 `LOCKED`, 지원하지 않는 종류는 HTTP 400 `INVALID_TYPE`으로 응답합니다. 선택은 요청 사용자 인벤토리에만 적용합니다.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -453,18 +525,40 @@
 }
 ```
 
-#### [POST] `/api/v1/malangi/interactions` — 말랑이 조작 시계열 로그 저장
+#### [PATCH] `/api/v1/malangis/{malangiType}/state` — 말랑이 고유 상태 갱신 (왁스 깨짐 등)
 - **인증:** 필요 (`Bearer <token>`)
+- **Path Parameter:** `malangiType` (`SLANGI`, `SQUISHY`, `WAKPPU`)
 - **Request Body:**
 ```json
 {
-  "sessionId": 501,
-  "malangiType": "SQUISHY",
-  "contextType": "AFTER_COUNSELING",
-  "startedAt": "2026-11-07T20:38:10",
-  "endedAt": "2026-11-07T20:40:10",
-  "durationSeconds": 120,
-  "interactionCount": 35
+  "customState": {
+    "crackedStage": 2
+  }
+}
+```
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "malangiType": "WAKPPU",
+    "customState": {
+      "crackedStage": 2
+    },
+    "updatedAt": "2026-11-07T22:25:00"
+  },
+  "error": null
+}
+```
+
+#### [POST] `/api/v1/malangi/sessions/start` — 말랑이 만지기 세션 시작
+- **인증:** 필요 (`Bearer <token>`)
+- **설명:** 메인 화면 또는 퀵 메뉴에서 말랑이를 터치해 만지기 화면으로 진입할 때 호출하여 만지기 세션을 오픈합니다.
+- **Request Body:**
+```json
+{
+  "malangiType": "WAKPPU",
+  "contextType": "MAIN"
 }
 ```
 - **응답 (HTTP 201 Created):**
@@ -472,36 +566,78 @@
 {
   "success": true,
   "data": {
-    "logId": 1024,
-    "malangiType": "SQUISHY",
-    "startedAt": "2026-11-07T20:38:10",
-    "endedAt": "2026-11-07T20:40:10",
-    "durationSeconds": 120,
-    "interactionCount": 35,
-    "totalPlayTime": 300
+    "sessionId": 302,
+    "malangiType": "WAKPPU",
+    "status": "IN_PROGRESS",
+    "contextType": "MAIN",
+    "startedAt": "2026-11-07T22:20:10",
+    "customState": {
+      "crackedStage": 0
+    }
   },
   "error": null
 }
 ```
 
-#### [GET] `/api/v1/malangi/interactions` — 최근 말랑이 조작 이력 조회
+#### [POST] `/api/v1/malangi/sessions/{sessionId}/end` — 말랑이 만지기 세션 종료 및 조작 집계
 - **인증:** 필요 (`Bearer <token>`)
-- **Query Parameters:**
-  - `limit`: 조회할 로그 개수 (기본값: 10)
+- **Path Parameter:** `sessionId` (말랑이 세션 ID)
+- **설명:** 만지기 화면에서 '사용 종료하기', '감정 정리하기(상담 이동)', '수면 모드' 등을 눌러 이탈할 때 호출합니다. 클라이언트에서 집계한 인터랙션 카운트와 체류 시간을 일괄 반영하며, 필요 시 변경된 말랑이 상태(`customState`)도 함께 동기화합니다.
+- **Request Body:**
+```json
+{
+  "durationSeconds": 210,
+  "touchCount": 45,
+  "longPressCount": 12,
+  "dragCount": 20,
+  "endReason": "TO_COUNSELING",
+  "customState": {
+    "crackedStage": 3
+  }
+}
+```
+- `endReason`: `EXIT` (단순 종료/메인 복귀), `TO_COUNSELING` (감정 정리하기 상담 연계), `TO_SLEEP` (수면 모드 전환)
 - **응답 (HTTP 200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "logs": [
+    "sessionId": 302,
+    "malangiType": "WAKPPU",
+    "status": "COMPLETED",
+    "durationSeconds": 210,
+    "touchCount": 45,
+    "longPressCount": 12,
+    "dragCount": 20,
+    "totalInteractionCount": 77,
+    "endReason": "TO_COUNSELING",
+    "totalPlayTime": 210
+  },
+  "error": null
+}
+```
+
+#### [GET] `/api/v1/malangi/sessions` — 최근 말랑이 만지기 세션 이력 조회
+- **인증:** 필요 (`Bearer <token>`)
+- **Query Parameters:**
+  - `limit`: 조회할 세션 개수 (기본값: 10)
+  - `limit`은 1~100 사이여야 합니다.
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
       {
-        "logId": 1024,
-        "malangiType": "SQUISHY",
-        "contextType": "AFTER_COUNSELING",
-        "startedAt": "2026-11-07T20:38:10",
-        "endedAt": "2026-11-07T20:40:10",
-        "durationSeconds": 120,
-        "interactionCount": 35
+        "sessionId": 302,
+        "malangiType": "WAKPPU",
+        "status": "COMPLETED",
+        "contextType": "MAIN",
+        "startedAt": "2026-11-07T22:20:10",
+        "endedAt": "2026-11-07T22:23:40",
+        "durationSeconds": 210,
+        "totalInteractionCount": 77,
+        "endReason": "TO_COUNSELING"
       }
     ]
   },
