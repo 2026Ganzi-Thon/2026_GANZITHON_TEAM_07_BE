@@ -41,12 +41,7 @@ public class MalangiService implements MalangiUseCase {
 
     @Override
     public Selection select(long userId, String malangiType) {
-        MalangiType type;
-        try {
-            type = MalangiType.valueOf(malangiType.toUpperCase(java.util.Locale.ROOT));
-        } catch (IllegalArgumentException exception) {
-            throw new MalangiFailure(MalangiFailure.Code.INVALID_TYPE);
-        }
+        MalangiType type = parseType(malangiType);
         if (!inventory.selectIfUnlocked(userId, type)) {
             throw new MalangiFailure(MalangiFailure.Code.LOCKED);
         }
