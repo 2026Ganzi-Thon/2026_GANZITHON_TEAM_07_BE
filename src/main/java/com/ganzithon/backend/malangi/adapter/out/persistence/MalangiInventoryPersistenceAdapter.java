@@ -49,7 +49,7 @@ class MalangiInventoryPersistenceAdapter implements MalangiInventoryStore {
     @Override
     @Transactional
     public boolean updateStateIfOwned(long userId, MalangiType type, Map<String, Object> customState) {
-        UserMalangiEntity malangi = repository.findByUserIdAndMalangiType(userId, type.name()).orElse(null);
+        UserMalangiEntity malangi = repository.findByUserIdAndMalangiTypeForUpdate(userId, type.name()).orElse(null);
         if (malangi == null || !malangi.unlocked()) return false;
         malangi.updateCustomState(customState);
         return true;

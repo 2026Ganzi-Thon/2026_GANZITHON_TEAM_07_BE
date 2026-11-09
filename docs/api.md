@@ -621,6 +621,7 @@
 - **인증:** 필요 (`Bearer <token>`)
 - **Query Parameters:**
   - `limit`: 조회할 세션 개수 (기본값: 10)
+  - `limit`은 1~100 사이여야 합니다.
 - **응답 (HTTP 200 OK):**
 ```json
 {

@@ -13,6 +13,12 @@ interface UserMalangiJpaRepository extends JpaRepository<UserMalangiEntity, Long
     java.util.Optional<UserMalangiEntity> findByUserIdAndMalangiType(long userId, String malangiType);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select malangi from UserMalangiEntity malangi where malangi.userId = :userId "
+            + "and malangi.malangiType = :malangiType")
+    java.util.Optional<UserMalangiEntity> findByUserIdAndMalangiTypeForUpdate(
+            @Param("userId") long userId, @Param("malangiType") String malangiType);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select malangi from UserMalangiEntity malangi where malangi.userId = :userId")
     List<UserMalangiEntity> findAllByUserIdForUpdate(@Param("userId") long userId);
 }

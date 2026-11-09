@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -117,6 +119,45 @@ class MalangiApiTests {
                                 + "\"dragCount\":0,\"endReason\":\"EXIT\"}"))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/malangi/sessions")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void concurrentSessionEndsDoNotLoseCumulativePlayTime() throws Exception {
+        String accessToken = registerAndLogin("malangi-concurrent@example.com");
+        String firstId = startSession(accessToken);
+        String secondId = startSession(accessToken);
+        var executor = Executors.newFixedThreadPool(2);
+        var startTogether = new CountDownLatch(1);
+        try {
+            var first = executor.submit(() -> endSession(accessToken, firstId, 12, startTogether));
+            var second = executor.submit(() -> endSession(accessToken, secondId, 18, startTogether));
+            startTogether.countDown();
+            assertThat(first.get()).isEqualTo(200);
+            assertThat(second.get()).isEqualTo(200);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        mockMvc.perform(get("/api/v1/malangis").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.malangis[0].totalPlayTime").value(30));
+    }
+
+    private String startSession(String accessToken) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/malangi/sessions/start")
+                        .header("Authorization", "Bearer " + accessToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"malangiType\":\"SLANGI\",\"contextType\":\"MAIN\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.data.sessionId").toString();
+    }
+
+    private int endSession(String accessToken, String sessionId, int duration, CountDownLatch startTogether) throws Exception {
+        startTogether.await();
+        return mockMvc.perform(post("/api/v1/malangi/sessions/" + sessionId + "/end")
+                        .header("Authorization", "Bearer " + accessToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"durationSeconds\":%d,\"touchCount\":1,\"longPressCount\":0,"
+                                .formatted(duration) + "\"dragCount\":0,\"endReason\":\"EXIT\"}"))
+                .andReturn().getResponse().getStatus();
     }
 
     @Test

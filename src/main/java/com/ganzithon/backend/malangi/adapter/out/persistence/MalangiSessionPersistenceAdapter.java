@@ -36,7 +36,7 @@ class MalangiSessionPersistenceAdapter implements MalangiSessionStore {
         MalangiSessionEntity session = sessions.findByIdForUpdate(sessionId)
                 .filter(item -> item.userId() == userId).orElseThrow(() -> new MalangiFailure(MalangiFailure.Code.SESSION_NOT_FOUND));
         if (!session.inProgress()) throw new MalangiFailure(MalangiFailure.Code.SESSION_COMPLETED);
-        UserMalangiEntity malangi = inventory.findByUserIdAndMalangiType(userId, session.type().name())
+        UserMalangiEntity malangi = inventory.findByUserIdAndMalangiTypeForUpdate(userId, session.type().name())
                 .orElseThrow(() -> new MalangiFailure(MalangiFailure.Code.LOCKED));
         LocalDateTime endedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         session.complete(duration, touch, press, drag, reason, endedAt);
