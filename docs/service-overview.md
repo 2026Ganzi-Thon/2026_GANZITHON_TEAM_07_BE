@@ -330,7 +330,7 @@ flowchart TD
 | **사용자 인증** | **F-00 구현 완료** | JWT 기반 이메일·카카오·디스코드·구글 인증, 토큰 갱신·로그아웃 및 Spring Security 연동 완료 |
 | **AI 대화 연동** | 설계 대상 | Spring AI 또는 LLM Client(OpenAI/Claude) 연동, 7단계 프롬프트 제어, 서버 1차 룰 기반 위험어 필터링 |
 | **데이터 스키마** | **일부 구현** | 인증용 `users`, `refresh_tokens`, `user_malangis` 테이블과 DDL 완료. 상담 도메인 스키마는 설계 대상 ([database.md](database.md)) |
-| **API 명세** | **일부 구현** | 인증 API 구현 완료. 상담 세션, 기록 조회, 말랑이 사용 API는 계약 및 구현이 남음 ([api.md](api.md)) |
+| **API 명세** | **일부 구현** | 인증 및 말랑이 인벤토리 조회·선택 API 구현 완료. 상담 세션·기록 조회·인터랙션 로그 API 구현이 남음 ([api.md](api.md)) |
 
 ---
 

@@ -33,7 +33,7 @@ Spring Boot와 Compose 모두 루트의 `.env`를 읽습니다. `.env`는 `KEY=v
 
 서버 기동 후 `curl http://127.0.0.1:8080/api/v1/health`로 `{"status":"UP"}`을 확인합니다. health는 인증 없이 접근하고 DB·LLM 상태를 조회하지 않습니다. Actuator health는 `http://127.0.0.1:8080/actuator/health`에서 확인할 수 있으며, HTTP에는 health만 노출되고 상세 정보는 숨깁니다. 현재 앱 기동에는 DB가 필요합니다.
 
-F-00 인증 API와 회원·토큰·말랑이 보유 테이블 마이그레이션이 구현되어 있습니다. 로컬·소셜 인증 모두 JWT 서명 키가 필요합니다. OAuth 로그인을 실제 사용하려면 공급자별 client ID/secret과 앱에 등록한 redirect URI를 `.env`에 설정해야 합니다. 설정이 비어 있어도 서버는 기동하지만 해당 공급자 로그인은 사용할 수 없습니다. Spring AI provider/model 설정은 아직 없어 외부 AI 호출은 발생하지 않습니다.
+F-00 인증 API와 말랑이 인벤토리 조회·선택 API가 구현되어 있습니다. Flyway V1은 회원·토큰·인벤토리 테이블을 만들고 V2는 기존 계정의 기본 SLANGI를 보정합니다. 로컬·소셜 인증 모두 JWT 서명 키가 필요합니다. OAuth 로그인을 실제 사용하려면 공급자별 client ID/secret과 앱에 등록한 redirect URI를 `.env`에 설정해야 합니다. 설정이 비어 있어도 서버는 기동하지만 해당 공급자 로그인은 사용할 수 없습니다. Spring AI provider/model 설정은 아직 없어 외부 AI 호출은 발생하지 않습니다.
 
 ## 환경변수
 
@@ -54,7 +54,7 @@ F-00 인증 API와 회원·토큰·말랑이 보유 테이블 마이그레이션
 | GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI | Google OAuth 앱 설정 | OAuth 사용 시 필수 |
 | LLM_PROVIDER / LLM_MODEL / LLM_API_KEY | 추후 LLM 연동용 예약 항목 | 빈 값, provider 선택·호출 미구현 |
 
-기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 앱 시작 시 Flyway가 V1 인증 스키마를 적용하고, Hibernate `ddl-auto=validate`가 엔티티와 스키마를 검증합니다.
+기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 앱 시작 시 Flyway가 V1·V2 스키마를 적용하고, Hibernate `ddl-auto=validate`가 엔티티와 스키마를 검증합니다.
 
 Compose는 MySQL을 호스트의 `127.0.0.1`에만 노출합니다. 운영 배포·TLS·인증은 별도 설계 대상이며, 외부 바인딩이 필요하면 `SERVER_ADDRESS`를 환경에 맞게 지정합니다.
 

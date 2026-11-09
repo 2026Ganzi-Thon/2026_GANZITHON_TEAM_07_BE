@@ -8,7 +8,7 @@ import com.ganzithon.backend.auth.application.port.out.AuthUserStore;
 import com.ganzithon.backend.auth.application.port.out.PasswordHasher;
 import com.ganzithon.backend.auth.application.port.out.RefreshTokenStore;
 import com.ganzithon.backend.auth.application.port.out.SocialProfileClient;
-import com.ganzithon.backend.auth.application.port.out.StarterMalangiStore;
+import com.ganzithon.backend.malangi.application.port.out.MalangiInventoryStore;
 import com.ganzithon.backend.auth.domain.AuthProvider;
 import com.ganzithon.backend.auth.domain.AuthUser;
 import com.ganzithon.backend.auth.domain.SocialProfile;
@@ -24,7 +24,7 @@ public class AuthService implements AuthUseCase {
     private final PasswordHasher passwordHasher;
     private final AuthTokenIssuer tokenIssuer;
     private final SocialProfileClient socialProfileClient;
-    private final StarterMalangiStore starterMalangiStore;
+    private final MalangiInventoryStore malangiInventory;
     private final AuthTransaction transaction;
 
     public AuthService(
@@ -33,7 +33,7 @@ public class AuthService implements AuthUseCase {
             PasswordHasher passwordHasher,
             AuthTokenIssuer tokenIssuer,
             SocialProfileClient socialProfileClient,
-            StarterMalangiStore starterMalangiStore,
+            MalangiInventoryStore malangiInventory,
             AuthTransaction transaction
     ) {
         this.users = users;
@@ -41,7 +41,7 @@ public class AuthService implements AuthUseCase {
         this.passwordHasher = passwordHasher;
         this.tokenIssuer = tokenIssuer;
         this.socialProfileClient = socialProfileClient;
-        this.starterMalangiStore = starterMalangiStore;
+        this.malangiInventory = malangiInventory;
         this.transaction = transaction;
     }
 
@@ -52,7 +52,10 @@ public class AuthService implements AuthUseCase {
         String passwordHash = passwordHasher.hash(command.password());
         return transaction.required(() -> {
             rejectExistingEmail(email);
-            return users.save(new AuthUser(null, email, command.nickname().trim(), AuthProvider.LOCAL, null, passwordHash));
+            AuthUser user = users.save(new AuthUser(
+                    null, email, command.nickname().trim(), AuthProvider.LOCAL, null, passwordHash));
+            malangiInventory.initializeStarter(user.id());
+            return user;
         });
     }
 
@@ -97,7 +100,7 @@ public class AuthService implements AuthUseCase {
 
             AuthUser newUser = users.save(new AuthUser(
                     null, email, socialProfile.nickname().trim(), command.provider(), socialProfile.providerId(), null));
-            starterMalangiStore.grantSlangi(newUser.id());
+            malangiInventory.initializeStarter(newUser.id());
             return authenticated(newUser, true);
         });
     }

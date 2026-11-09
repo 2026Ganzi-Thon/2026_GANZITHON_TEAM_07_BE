@@ -32,10 +32,10 @@ erDiagram
     USERS ||--o{ COUNSELING_SESSIONS : "대화한다"
     USERS ||--o{ COUNSELING_RESULTS : "소유한다"
     USERS ||--o{ USER_MALANGIS : "보유한다"
-    USERS ||--o{ MALANGI_INTERACTION_LOGS : "플레이한다"
+    USERS ||--o{ MALANGI_SESSIONS : "플레이한다"
     COUNSELING_SESSIONS ||--o{ COUNSELING_MESSAGES : "메시지 로그"
     COUNSELING_SESSIONS ||--o| COUNSELING_RESULTS : "1:1 완료 산출"
-    COUNSELING_SESSIONS ||--o{ MALANGI_INTERACTION_LOGS : "연계"
+    COUNSELING_SESSIONS }o--o| MALANGI_SESSIONS : "환기 후 상담 연계 (malangi_session_id)"
 
     USERS {
         bigint id PK "회원 고유 식별자"
@@ -60,6 +60,7 @@ erDiagram
     COUNSELING_SESSIONS {
         bigint id PK "세션 고유 식별자"
         bigint user_id FK "사용자 ID"
+        bigint malangi_session_id FK "직전 말랑이 세션 ID (선택 연계)"
         varchar current_step "현재 단계 (STEP_01 ~ STEP_07)"
         varchar status "상태 (IN_PROGRESS, COMPLETED, ABORTED_RISK, ABORTED_USER)"
         boolean risk_flag "위기 신호 감지 여부"
@@ -98,21 +99,26 @@ erDiagram
         varchar malangi_type "말랑이 종류 (SLANGI, SQUISHY, WAKPPU)"
         boolean is_unlocked "해금/보유 여부"
         boolean is_selected "현재 대표 말랑이 선택 여부"
+        json custom_state "말랑이별 커스텀 상태 (왁스 깨짐 단계 등)"
         int total_play_time "누적 인터랙션 시간(초)"
         datetime last_interacted_at "최근 조작 일시"
         datetime created_at "획득 일시"
     }
 
-    MALANGI_INTERACTION_LOGS {
-        bigint id PK "인터랙션 로그 고유 식별자"
+    MALANGI_SESSIONS {
+        bigint id PK "말랑이 세션 고유 식별자"
         bigint user_id FK "사용자 ID"
-        bigint session_id FK "연계된 세션 ID (선택)"
         varchar malangi_type "사용한 말랑이 (SLANGI, SQUISHY, WAKPPU)"
+        varchar status "세션 상태 (IN_PROGRESS, COMPLETED)"
         varchar context_type "진입 경로 (MAIN, AFTER_COUNSELING, SLEEP_MODE)"
+        varchar end_reason "종료 사유 (EXIT, TO_COUNSELING, TO_SLEEP)"
+        int duration_seconds "이용 시간(초)"
+        int touch_count "터치 횟수"
+        int long_press_count "롱프레스 횟수"
+        int drag_count "드래그 횟수"
+        int total_interaction_count "총 조작 횟수"
         datetime started_at "조작 시작 일시"
         datetime ended_at "조작 종료 일시"
-        int duration_seconds "이용 시간(초)"
-        int interaction_count "터치/드래그 총 조작 횟수"
         datetime created_at "로그 생성 일시"
     }
 ```
@@ -160,6 +166,8 @@ erDiagram
 
 V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합니다. 소셜 최초 가입 시 사용자별 `SLANGI` 행을 생성하고 `is_unlocked`, `is_selected`를 모두 `TRUE`로 설정합니다. 테이블의 전체 컬럼은 아래 말랑이 인벤토리 절을 참고하세요.
 
+V2 마이그레이션은 기존 사용자 중 `SLANGI` 행이 없는 계정에 기본 말랑이를 해금·선택 상태로 추가합니다. 신규 로컬 가입과 소셜 JIT도 동일하게 기본 말랑이를 지급합니다.
+
 ### 3-3. `counseling_sessions` (AI 대화 세션 테이블)
 
 - **목적:** 실시간 대화 상태 머신, 진행 중 슬롯 및 임시 타임라인 저장
@@ -169,6 +177,7 @@ V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 세션 고유 ID |
 | `user_id` | BIGINT | N | FK (`users.id`) | — | 참여 회원 ID |
+| `malangi_session_id` | BIGINT | Y | FK (`malangi_sessions.id`) | NULL | 직전 말랑이 만지기 세션 ID (환기 후 '감정 정리하기'로 연계된 경우) |
 | `current_step` | VARCHAR(20) | N | — | 'STEP_01' | 현재 진행 단계 (`STEP_01` ~ `STEP_07`) |
 | `status` | VARCHAR(20) | N | — | 'IN_PROGRESS' | 세션 상태 (`IN_PROGRESS`, `COMPLETED`, `ABORTED_RISK`, `ABORTED_USER`) |
 | `risk_flag` | BOOLEAN | N | — | FALSE | 위기 신호 감지 여부 |
@@ -241,7 +250,8 @@ V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합
 
 ### 3-6. `user_malangis` (말랑이 인벤토리 테이블)
 
-실제 V1 스키마에 포함됩니다. F-00 소셜 최초 가입은 `SLANGI`를 해금·선택 상태로 생성합니다.
+실제 V1 스키마에 포함됩니다. 신규 사용자에게 `SLANGI`를 해금·선택 상태로 생성하고, 상담 완료로 추천된 말랑이도 인벤토리에 추가합니다.
+또한 말랑이별 고유 인터랙션 상태(예: 왁뿌볼의 왁스 깨짐 단계 `crackedStage`)를 영속화하기 위해 `custom_state` JSON 컬럼을 유지합니다.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -250,26 +260,33 @@ V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합
 | `malangi_type` | VARCHAR(50) | N | — | — | 말랑이 종류 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
 | `is_unlocked` | BOOLEAN | N | — | FALSE | **해금 여부 (상담 완료 시 추천되면 자동 TRUE로 전환)** |
 | `is_selected` | BOOLEAN | N | — | FALSE | 메인 화면 대표 말랑이 선택 여부 |
+| `custom_state` | JSON | N | — | `{}` (애플리케이션 초기화) | **말랑이별 커스텀 상태 (왁스 깨짐 단계 등 영속 저장)** |
 | `total_play_time`| INT | N | — | 0 | 누적 만진 시간 (초) |
 | `last_interacted_at`| DATETIME(6)| Y | — | NULL | 가장 최근에 만진 일시 |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 획득/생성 일시 |
 
 ---
 
-### 3-7. `malangi_interaction_logs` (말랑이 인터랙션 로그 테이블)
+### 3-7. `malangi_sessions` (말랑이 만지기 세션 테이블)
+
+사용자가 메인 또는 퀵 메뉴를 통해 말랑이 만지기 화면에 진입하여 조작하고 종료하기까지의 라이프사이클을 추적합니다. 터치·롱프레스·드래그 등 실시간 조작은 클라이언트가 집계하며, 세션 종료(`POST /end`) 시점에 한 번에 저장됩니다.
 
 | 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 인터랙션 로그 ID |
+| `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 말랑이 세션 고유 ID |
 | `user_id` | BIGINT | N | FK (`users.id`) | — | 회원 ID |
-| `session_id` | BIGINT | Y | FK (`counseling_sessions.id`) | NULL | 연계된 상담 세션 ID |
 | `malangi_type` | VARCHAR(50) | N | — | — | 만진 말랑이 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
+| `status` | VARCHAR(20) | N | — | 'IN_PROGRESS' | 세션 상태 (`IN_PROGRESS`, `COMPLETED`) |
 | `context_type` | VARCHAR(30) | N | — | 'MAIN' | 진입 맥락 (`MAIN`, `AFTER_COUNSELING`, `SLEEP_MODE`) |
-| `started_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 만지기 시작한 일시 |
-| `ended_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 만지기를 마친 일시 |
+| `started_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 만지기 시작 일시 |
+| `ended_at` | DATETIME(6) | Y | — | NULL | 만지기 종료 일시 |
 | `duration_seconds`| INT | N | — | 0 | 만진 시간 (초) |
-| `interaction_count`| INT | N | — | 0 | 총 조작 횟수 |
-| `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 로그 저장 일시 |
+| `touch_count` | INT | N | — | 0 | 단순 터치/탭 조작 횟수 |
+| `long_press_count`| INT | N | — | 0 | 길게 누르기 조작 횟수 |
+| `drag_count` | INT | N | — | 0 | 드래그/문지르기 조작 횟수 |
+| `total_interaction_count`| INT | N | — | 0 | 총 조작 횟수 (`touch` + `long_press` + `drag`) |
+| `end_reason` | VARCHAR(30) | Y | — | NULL | 종료 사유 (`EXIT`: 단순 종료, `TO_COUNSELING`: 감정 정리 전환, `TO_SLEEP`: 수면 모드) |
+| `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 세션 생성 일시 |
 
 ---
 
@@ -282,11 +299,13 @@ V1 마이그레이션은 인증과 함께 `user_malangis` 테이블도 생성합
 | `refresh_tokens` | `uk_token_hash` | `token_hash` | 토큰 조회 및 재발급 시 해시값 일치 검증 |
 | `refresh_tokens` | `idx_tokens_user` | `user_id`, `is_revoked` | 로그아웃 시 해당 회원의 모든 유효 토큰 일괄 폐기 |
 | `counseling_sessions` | `idx_sessions_user_status` | `user_id`, `status` | 사용자의 진행 중 세션 여부 고속 확인 |
+| `counseling_sessions` | `idx_sessions_malangi` | `malangi_session_id` | 환기 후 연계된 상담 세션 역방향 조회 |
 | `counseling_messages` | `idx_messages_session_id` | `session_id`, `created_at ASC` | 세션 발화 이력 순차 로딩 가속 |
 | `counseling_results` | `uk_results_session_id` | `session_id` | 세션당 단 1건의 결과 보장 (1:1) |
 | `counseling_results` | `idx_results_user_created` | `user_id`, `created_at DESC` | 마음 기록함 최신순 페이징 목록 조회 가속 |
 | `user_malangis` | `uk_user_malangi` | `user_id`, `malangi_type` | 사용자별 말랑이 보유 유일성 보장 |
-| `malangi_interaction_logs` | `idx_logs_user_started` | `user_id`, `started_at DESC` | 사용자별 최근 조작 이력 시계열 조회 |
+| `malangi_sessions` | `idx_malangi_user_started` | `user_id`, `started_at DESC` | 사용자별 최근 조작 세션 시계열 조회 |
+| `malangi_sessions` | `idx_malangi_user_status` | `user_id`, `status` | 진행 중인 말랑이 세션 존재 여부 확인 |
 
 ---
 

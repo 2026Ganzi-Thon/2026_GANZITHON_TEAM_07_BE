@@ -1,6 +1,7 @@
 package com.ganzithon.backend.auth.adapter.in.web;
 
 import com.ganzithon.backend.auth.application.port.in.AuthFailure;
+import com.ganzithon.backend.common.adapter.in.web.ApiEnvelope;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
