@@ -9,6 +9,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,6 +41,10 @@ class UserMalangiEntity {
     @Column(name = "last_interacted_at")
     private LocalDateTime lastInteractedAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "custom_state", nullable = false, columnDefinition = "json")
+    private Map<String, Object> customState = new LinkedHashMap<>();
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -50,7 +58,8 @@ class UserMalangiEntity {
     }
 
     OwnedMalangi toDomain() {
-        return new OwnedMalangi(MalangiType.valueOf(malangiType), unlocked, selected, totalPlayTime, lastInteractedAt);
+        return new OwnedMalangi(MalangiType.valueOf(malangiType), unlocked, selected, totalPlayTime,
+                lastInteractedAt, customState);
     }
 
     MalangiType type() {
@@ -64,4 +73,15 @@ class UserMalangiEntity {
     void select(boolean selected) {
         this.selected = selected;
     }
+
+    Map<String, Object> customState() { return customState; }
+
+    void updateCustomState(Map<String, Object> customState) { this.customState = new LinkedHashMap<>(customState); }
+
+    void recordPlay(int durationSeconds, LocalDateTime endedAt) {
+        this.totalPlayTime += durationSeconds;
+        this.lastInteractedAt = endedAt;
+    }
+
+    int totalPlayTime() { return totalPlayTime; }
 }

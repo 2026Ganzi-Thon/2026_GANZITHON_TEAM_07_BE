@@ -260,7 +260,7 @@ V2 마이그레이션은 기존 사용자 중 `SLANGI` 행이 없는 계정에 �
 | `malangi_type` | VARCHAR(50) | N | — | — | 말랑이 종류 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
 | `is_unlocked` | BOOLEAN | N | — | FALSE | **해금 여부 (상담 완료 시 추천되면 자동 TRUE로 전환)** |
 | `is_selected` | BOOLEAN | N | — | FALSE | 메인 화면 대표 말랑이 선택 여부 |
-| `custom_state` | JSON | N | — | '{"crackedStage": 0}' | **말랑이별 커스텀 상태 (왁스 깨짐 단계 등 영속 저장)** |
+| `custom_state` | JSON | N | — | `{}` (애플리케이션 초기화) | **말랑이별 커스텀 상태 (왁스 깨짐 단계 등 영속 저장)** |
 | `total_play_time`| INT | N | — | 0 | 누적 만진 시간 (초) |
 | `last_interacted_at`| DATETIME(6)| Y | — | NULL | 가장 최근에 만진 일시 |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 획득/생성 일시 |

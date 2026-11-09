@@ -47,6 +47,79 @@ class MalangiApiTests {
     }
 
     @Test
+    void persistsMalangiCustomState() throws Exception {
+        String accessToken = registerAndLogin("malangi-state@example.com");
+
+        mockMvc.perform(patch("/api/v1/malangis/SLANGI/state")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"customState\":{\"crackedStage\":2}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.customState.crackedStage").value(2));
+
+        mockMvc.perform(get("/api/v1/malangis").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.malangis[0].customState.crackedStage").value(2));
+    }
+
+    @Test
+    void startsEndsAndListsTouchSessions() throws Exception {
+        String accessToken = registerAndLogin("malangi-session@example.com");
+        String sessionId = JsonPath.read(mockMvc.perform(post("/api/v1/malangi/sessions/start")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"malangiType\":\"SLANGI\",\"contextType\":\"MAIN\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.startedAt").isNotEmpty())
+                .andExpect(jsonPath("$.data.customState").isMap())
+                .andReturn().getResponse().getContentAsString(), "$.data.sessionId").toString();
+
+        mockMvc.perform(post("/api/v1/malangi/sessions/" + sessionId + "/end")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"durationSeconds\":12,\"touchCount\":2,\"longPressCount\":1,"
+                                + "\"dragCount\":3,\"endReason\":\"EXIT\",\"customState\":{\"crackedStage\":3}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.totalInteractionCount").value(6))
+                .andExpect(jsonPath("$.data.totalPlayTime").value(12));
+
+        mockMvc.perform(get("/api/v1/malangi/sessions").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sessions[0].sessionId").value(Integer.parseInt(sessionId)))
+                .andExpect(jsonPath("$.data.sessions[0].durationSeconds").value(12));
+        mockMvc.perform(get("/api/v1/malangis").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.malangis[0].customState.crackedStage").value(3));
+        mockMvc.perform(post("/api/v1/malangi/sessions/" + sessionId + "/end")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"durationSeconds\":12,\"touchCount\":0,\"longPressCount\":0,"
+                                + "\"dragCount\":0,\"endReason\":\"EXIT\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void doesNotExposeOrEndAnotherUsersSessions() throws Exception {
+        String ownerToken = registerAndLogin("malangi-owner@example.com");
+        String otherToken = registerAndLogin("malangi-other@example.com");
+        String sessionId = JsonPath.read(mockMvc.perform(post("/api/v1/malangi/sessions/start")
+                        .header("Authorization", "Bearer " + ownerToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"malangiType\":\"SLANGI\",\"contextType\":\"MAIN\"}"))
+                .andReturn().getResponse().getContentAsString(), "$.data.sessionId").toString();
+
+        mockMvc.perform(get("/api/v1/malangi/sessions").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.sessions.length()").value(0));
+        mockMvc.perform(post("/api/v1/malangi/sessions/" + sessionId + "/end")
+                        .header("Authorization", "Bearer " + otherToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"durationSeconds\":1,\"touchCount\":0,\"longPressCount\":0,"
+                                + "\"dragCount\":0,\"endReason\":\"EXIT\"}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/malangi/sessions")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void selectsUnlockedMalangiAndMakesItTheOnlySelectedItem() throws Exception {
         String email = "malangi-select@example.com";
         String accessToken = registerAndLogin(email);

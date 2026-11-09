@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 interface UserMalangiJpaRepository extends JpaRepository<UserMalangiEntity, Long> {
     List<UserMalangiEntity> findAllByUserIdOrderByMalangiType(long userId);
 
+    java.util.Optional<UserMalangiEntity> findByUserIdAndMalangiType(long userId, String malangiType);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select malangi from UserMalangiEntity malangi where malangi.userId = :userId")
     List<UserMalangiEntity> findAllByUserIdForUpdate(@Param("userId") long userId);

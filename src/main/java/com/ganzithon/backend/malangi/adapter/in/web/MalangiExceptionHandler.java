@@ -11,9 +11,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class MalangiExceptionHandler {
     @ExceptionHandler(MalangiFailure.class)
     ResponseEntity<ApiEnvelope<Object>> handleMalangiFailure(MalangiFailure failure) {
-        HttpStatus status = failure.code() == MalangiFailure.Code.LOCKED
-                ? HttpStatus.CONFLICT
-                : HttpStatus.BAD_REQUEST;
+        HttpStatus status = switch (failure.code()) {
+            case LOCKED, SESSION_COMPLETED -> HttpStatus.CONFLICT;
+            case SESSION_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            default -> HttpStatus.BAD_REQUEST;
+        };
         return ResponseEntity.status(status).body(ApiEnvelope.failure(
                 failure.code().name(), failure.code().message(), null));
     }

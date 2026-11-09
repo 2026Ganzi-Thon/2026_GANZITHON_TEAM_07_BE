@@ -4,6 +4,7 @@ import com.ganzithon.backend.malangi.application.port.out.MalangiInventoryStore;
 import com.ganzithon.backend.malangi.domain.MalangiType;
 import com.ganzithon.backend.malangi.domain.OwnedMalangi;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,15 @@ class MalangiInventoryPersistenceAdapter implements MalangiInventoryStore {
             return false;
         }
         malangis.forEach(malangi -> malangi.select(malangi == selected));
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean updateStateIfOwned(long userId, MalangiType type, Map<String, Object> customState) {
+        UserMalangiEntity malangi = repository.findByUserIdAndMalangiType(userId, type.name()).orElse(null);
+        if (malangi == null || !malangi.unlocked()) return false;
+        malangi.updateCustomState(customState);
         return true;
     }
 }

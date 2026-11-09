@@ -586,7 +586,6 @@
 - **Request Body:**
 ```json
 {
-  "endedAt": "2026-11-07T22:23:40",
   "durationSeconds": 210,
   "touchCount": 45,
   "longPressCount": 12,

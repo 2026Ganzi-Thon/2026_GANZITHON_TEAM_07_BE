@@ -76,3 +76,8 @@
 
 - The design guarantees backward compatibility with the existing inventory selection APIs (`GET /api/v1/malangis`, `PATCH /api/v1/malangis/{malangiType}/select`).
 - If a user loses connection or force-closes the app, the session remains `IN_PROGRESS` and client can send the end payload upon reconnect, or background cleanup can periodically handle stale sessions.
+
+## Implementation Progress
+
+- Implemented: custom state persistence, session start/end, interaction counts, cumulative play time, per-user recent session history, authenticated API integration tests (items 01–04).
+- Pending integration: item 05 requires the counseling session creation endpoint and `counseling_sessions` table, which are not present in this repository yet. Add the nullable session foreign key and validate ownership when the counseling module is implemented.

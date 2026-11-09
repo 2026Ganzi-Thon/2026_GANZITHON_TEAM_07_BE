@@ -71,7 +71,7 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 
 - `GET /api/v1/health`: 인증 없이 서버의 HTTP 응답 확인, DB·LLM 조회 없음
 - F-00: 이메일·비밀번호 인증, Kakao/Discord/Google Authorization Code 로그인, Refresh Token 회전·로그아웃, `/me` 프로필 조회 제공
-- F-04/F-05 일부: 말랑이 인벤토리 조회와 해금된 말랑이 선택 API 제공; 감정 기반 추천 및 터치 인터랙션은 미구현
+- F-04/F-05 일부: 말랑이 인벤토리 조회·선택, 고유 상태 저장, 만지기 세션 시작·종료·이력 API 제공; 감정 기반 추천, 실제 터치 인터랙션, 상담 세션 연계는 미구현
 - MySQL 8.4 / JPA / Flyway: 회원·Refresh Token·말랑이 보유 테이블을 V1으로 생성, V2에서 기존 회원의 기본 SLANGI 보정
 - Spring Security / JWT Resource Server: 인증·OAuth 공개 경로 외에는 Access Token을 요구하며 Refresh Token은 API 인증에 사용할 수 없음
 - Spring AI: Boot 4 호환 BOM과 공통 ChatClient API만 설치됨. provider/model 설정과 외부 호출은 미구현

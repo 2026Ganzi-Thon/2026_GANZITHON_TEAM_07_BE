@@ -29,15 +29,18 @@ class MySqlTestcontainersSmokeTests {
     Flyway flyway;
 
     @Test
-    void connectsToMySqlAndRunsAuthenticationMigration() {
+    void connectsToMySqlAndRunsAuthenticationAndMalangiMigrations() {
         assertThat(jdbcTemplate.queryForObject("SELECT VERSION()", String.class)).startsWith("8.4");
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(flyway.info().applied())
                 .extracting(migration -> migration.getVersion().getVersion())
-                .containsExactly("1", "2");
+                .containsExactly("1", "2", "3");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
-                        + "AND table_name IN ('users', 'refresh_tokens', 'user_malangis')", Integer.class))
-                .isEqualTo(3);
+                        + "AND table_name IN ('users', 'refresh_tokens', 'user_malangis', 'malangi_sessions')", Integer.class))
+                .isEqualTo(4);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns "
+                + "WHERE table_schema = DATABASE() AND table_name = 'user_malangis' "
+                + "AND column_name = 'custom_state'", Integer.class)).isEqualTo(1);
     }
 }
