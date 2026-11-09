@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,8 @@ public class MalangiService implements MalangiUseCase {
         MalangiType type = parseType(malangiType);
         if (customState == null) throw new MalangiFailure(MalangiFailure.Code.INVALID_STATE);
         if (!inventory.updateStateIfOwned(userId, type, customState)) throw new MalangiFailure(MalangiFailure.Code.LOCKED);
-        return new StateUpdate(type, Map.copyOf(customState), LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+        return new StateUpdate(type, new LinkedHashMap<>(customState),
+                LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
     }
 
     private MalangiType parseType(String malangiType) {
@@ -67,30 +69,30 @@ public class MalangiService implements MalangiUseCase {
 
     @Override
     public StartedSession startSession(long userId, String malangiType, String contextType) {
-        try {
-            MalangiType type = parseType(malangiType);
-            MalangiSession session = sessions.start(userId, type, ContextType.valueOf(contextType));
-            Map<String, Object> state = inventory.findByUserId(userId).stream().filter(item -> item.type() == type)
-                    .map(OwnedMalangi::customState).findFirst().orElse(Map.of());
-            return new StartedSession(session, state);
-        }
-        catch (IllegalArgumentException exception) { throw new MalangiFailure(MalangiFailure.Code.INVALID_TYPE); }
+        MalangiType type = parseType(malangiType);
+        ContextType context;
+        try { context = ContextType.valueOf(contextType); }
+        catch (IllegalArgumentException exception) { throw new MalangiFailure(MalangiFailure.Code.INVALID_INPUT); }
+        MalangiSession session = sessions.start(userId, type, context);
+        Map<String, Object> state = inventory.findByUserId(userId).stream().filter(item -> item.type() == type)
+                .map(OwnedMalangi::customState).findFirst().orElse(Map.of());
+        return new StartedSession(session, state);
     }
 
     @Override
     public CompletedSession endSession(long userId, long sessionId, int duration, int touch, int press, int drag,
             String reason, Map<String, Object> customState) {
-        if (duration < 0 || touch < 0 || press < 0 || drag < 0) throw new MalangiFailure(MalangiFailure.Code.INVALID_STATE);
+        if (duration < 0 || touch < 0 || press < 0 || drag < 0) throw new MalangiFailure(MalangiFailure.Code.INVALID_INPUT);
         EndReason endReason;
         try { endReason = EndReason.valueOf(reason); }
-        catch (IllegalArgumentException exception) { throw new MalangiFailure(MalangiFailure.Code.INVALID_STATE); }
+        catch (IllegalArgumentException exception) { throw new MalangiFailure(MalangiFailure.Code.INVALID_INPUT); }
         MalangiSession session = sessions.end(userId, sessionId, duration, touch, press, drag, endReason, customState);
         return new CompletedSession(session, sessions.totalPlayTime(userId, session.malangiType()));
     }
 
     @Override
     public List<MalangiSession> recentSessions(long userId, int limit) {
-        if (limit < 1 || limit > 100) throw new MalangiFailure(MalangiFailure.Code.INVALID_STATE);
+        if (limit < 1 || limit > 100) throw new MalangiFailure(MalangiFailure.Code.INVALID_INPUT);
         return sessions.recent(userId, limit);
     }
 }
