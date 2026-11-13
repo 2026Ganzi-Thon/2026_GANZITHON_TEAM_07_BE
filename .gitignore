@@ -148,3 +148,7 @@ replay_pid*
 
 # Keep the Gradle Wrapper binary available in fresh clones.
 !gradle/wrapper/gradle-wrapper.jar
+
+# 프롬프트 시뮬레이션 결과 (로컬 확인용)
+eval/results/*
+!eval/results/.gitkeep
