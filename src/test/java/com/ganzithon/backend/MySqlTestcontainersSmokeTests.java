@@ -34,7 +34,7 @@ class MySqlTestcontainersSmokeTests {
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(flyway.info().applied())
                 .extracting(migration -> migration.getVersion().getVersion())
-                .containsExactly("1", "2", "3");
+                .containsExactly("1", "2", "3", "4");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
                         + "AND table_name IN ('users', 'refresh_tokens', 'user_malangis', 'malangi_sessions')", Integer.class))
@@ -42,5 +42,10 @@ class MySqlTestcontainersSmokeTests {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM information_schema.columns "
                 + "WHERE table_schema = DATABASE() AND table_name = 'user_malangis' "
                 + "AND column_name = 'custom_state'", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+                        + "AND table_name IN ('counseling_sessions', 'counseling_messages', 'counseling_results')",
+                Integer.class))
+                .isEqualTo(3);
     }
 }
