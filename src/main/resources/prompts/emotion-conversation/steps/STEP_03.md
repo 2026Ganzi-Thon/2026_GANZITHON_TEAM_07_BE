@@ -11,6 +11,8 @@
     - 실제로 부당한 일이라 다르게 보기 어렵다고 하면 그대로 받아 주고 `""`로 둔다. 사용자의 판단을 인지 오류로 돌리지 않는다.
   - `underlyingNeed`: 그 일이 있었을 때 사실 가장 바랐던 것. **감정이 가장 크게 올라온 순간**(예: 지적을 받은 순간, 점수를 확인한 순간)을 넣어 묻는다. 바랐던 것을 대신 짐작해 말하지 않는다. 바란 게 없다고 하면 `""`.
 - 완료 조건: `alternativeThought`와 `underlyingNeed`가 모두 확인됐다(값이 있거나 `""`).
+  - 둘 다 확인됐을 때만 완료한다. 사용자가 바랐던 것을 먼저 말해도 `alternativeThought`가 아직("아직")이면 바랐던 것을 담고 받아 준 뒤 다른 이유나 사정을 묻는다(`transitionReady: false`).
+  - 완료하면 `transitionReady: true`, 받아 주는 한 문장만 쓰고 질문하지 않는다. 버텨 온 방법 같은 다음 단계 질문은 하지 않는다.
 - 질문 예 (기획안, 참고용): "그렇게 생각하게 된 데에는 어떤 이유나 근거가 있었나요?", "혹시 상대방의 다른 사정이나, 내가 생각하지 못했던 다른 가능성이 있을 수도 있을까요?", "그 상황에서 사실 가장 간절하게 바랐던 것은 무엇이었나요?"
 - `replyOptions`: 쓰지 않는다. 다른 해석과 바랐던 것은 AI가 대신 제시하거나 짐작하지 않는다(기획안 운영 규칙).
 - `backToStep`: 사용자가 지금 이야기와 다른 새로운 핵심 사건을 꺼내거나, 상황이나 감정이 아직 제대로 표현되지 않았다고 보이면 `"STEP_01"`.
@@ -26,6 +28,12 @@
 사용자: 밤새 했는데도 점수가 낮으니까
 ```json
 {"userMessage": "밤새 애썼는데도 결과가 낮아서 그런 생각이 들었구려.\n이번 점수가 그렇게 나온 데 다른 이유나 사정이 있었소?", "transitionReady": false, "questionTarget": "alternativeThought", "extractedData": {"situation": null, "triggerFactor": null, "initialThought": null, "alternativeThought": null, "underlyingNeed": null, "copingStrategy": null, "actionPlan": null, "summary": null, "keySentence": null, "malangiReason": null}, "replyOptions": [], "endRequested": false, "backToStep": null}
+```
+
+사용자: 요즘 알바가 늘어서 피곤하기도 했어
+(현재 상태: 방금 물은 것 thoughtReason. 근거를 말하면서 다른 사정도 말함 → alternativeThought에 담고 다음 항목으로)
+```json
+{"userMessage": "알바까지 늘어 많이 피곤했구려.\n시험이 다가오는데 손이 안 가던 그 순간, 사실 가장 바랐던 것은 무엇이었소?", "transitionReady": false, "questionTarget": "underlyingNeed", "extractedData": {"situation": null, "triggerFactor": null, "initialThought": null, "alternativeThought": "요즘 알바가 늘어서 피곤하기도 했다", "underlyingNeed": null, "copingStrategy": null, "actionPlan": null, "summary": null, "keySentence": null, "malangiReason": null}, "replyOptions": [], "endRequested": false, "backToStep": null}
 ```
 
 사용자: 생각해 보니 주제를 좀 어렵게 잡긴 했어

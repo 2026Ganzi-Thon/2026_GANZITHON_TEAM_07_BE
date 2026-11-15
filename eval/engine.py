@@ -164,11 +164,45 @@ def slots_text(state):
     return "\n".join(lines)
 
 
+def next_target(state):
+    """현재 단계에서 아직 확인되지 않은 첫 '물을 것'. 없으면 None."""
+    for t in TARGETS.get(state["step"], []):
+        if t in state["answered"]:
+            continue
+        if t in SLOT_KEYS and state["slots"][t] is not None and t != "situation":
+            continue
+        if t == "triggerFactor":  # 선택 항목: 사건으로 분명하면 묻지 않는다
+            continue
+        return t
+    return None
+
+
+def later_targets(state):
+    """next_target 뒤에 남은 '물을 것' (선택 항목 triggerFactor 제외)."""
+    nt = next_target(state)
+    if nt is None:
+        return []
+    ts = TARGETS[state["step"]]
+    return [t for t in ts[ts.index(nt) + 1:] if t != "triggerFactor" and t not in state["answered"]
+            and not (t in SLOT_KEYS and state["slots"][t] is not None)]
+
+
+def split_bubble(msg):
+    """공감 문장과 질문 문장 사이 줄바꿈이 빠졌으면 서버가 마지막 문장 앞에서 나눈다 (말풍선 분리)."""
+    if "?" not in msg or "\n" in msg:
+        return msg, False
+    parts = re.split(r"(?<=[.!])\s+", msg.strip())
+    if len(parts) < 2:
+        return msg, False
+    return " ".join(parts[:-1]) + "\n" + parts[-1], True
+
+
 def build_messages(state, history, user_text, note):
     step = state["step"]
     fill = {"currentStep": step, "primaryEmotion": state["primaryEmotion"], "secondaryEmotion": state["secondaryEmotion"],
             "preIntensity": state["preIntensity"], "postIntensity": state["postIntensity"], "slots": slots_text(state),
-            "answeredTargets": ", ".join(state["answered"]) or "없음",
+            "answeredTargets": ", ".join(state["answered"]) or "없음", "nextTarget": next_target(state),
+            "laterTargets": ", ".join(later_targets(state)) or None,
             "recommendedMalangi": (f"{state['recommendedMalangi']} ({MALANGI_DESC[state['recommendedMalangi']]})"
                                    if step == "STEP_06" else "없음")}
     common = re.sub(r"\{\{(\w+)\}\}", lambda m: "없음" if fill.get(m.group(1)) is None else str(fill[m.group(1)]), COMMON)
@@ -194,19 +228,52 @@ def check(parsed, state, listen):
     if step == "STEP_06":
         if "?" in msg:
             return "정리에 질문이 있다. 질문하지 않는다"
-        reason = str((parsed.get("extractedData") or {}).get("malangiReason") or "")
+        ex = parsed.get("extractedData") or {}
+        missing = [k for k in ("initialThought", "alternativeThought") if state["slots"][k] and not ex.get(k)]
+        if missing:
+            return f"기록함 문장 {missing}이 비었다. 확인된 슬롯 값을 사용자 1인칭 해요체 한 문장으로 다시 채운다"
+        bad = [k for k in ("initialThought", "alternativeThought", "summary") if ex.get(k) and not re.search(r"요[.?!”\"]?$", ex[k].strip())]
+        if bad:
+            return f"기록함 문장 {bad}은 사용자 1인칭 해요체 한 문장으로 끝낸다 (~요.)"
+        reason = str(ex.get("malangiReason") or "")
         others = [m for m in MALANGI_DESC if m != state["recommendedMalangi"] and m in reason]
         if others:
             return f"malangiReason은 추천 말랑이 {state['recommendedMalangi']}만 말한다 (다른 말랑이 이름 금지)"
         return None
+    if re.search(r"(요[.?!]?$|요[.?!] |니다[.?!]?)", msg.replace("\n", " ").strip()):
+        return "테스형 하오체가 아닌 해요체·합니다체 어미가 있다. '~소', '~구려', '~겠소?'로 끝낸다"
+    if step == "STEP_01" and not parsed.get("transitionReady") and "정리해 보면" in msg:
+        return "STEP_01을 마치지 않았는데 마무리 문장을 썼다. 상황이 부족하면 상황을 묻는 질문 하나로 끝낸다 (questionTarget: situation)"
+    if step in ("STEP_02", "STEP_03", "STEP_04", "STEP_05") and not listen and parsed.get("transitionReady") \
+            and "?" not in msg and not parsed.get("replyOptions") and not would_finish(parsed, state):
+        return f"{step}의 필수 항목 {REQUIRED[step]}이 아직 확인되지 않았다. 받아 준 뒤 {next_target(state)}을 묻는다. transitionReady: false"
+    if (step, parsed.get("backToStep")) in BACK_ALLOWED:
+        return None  # 되돌아가면 서버가 돌아간 단계 질문을 다시 받아 오므로 이 응답의 질문은 쓰지 않는다
     if listen:
         return "들어 달라고 했는데 질문했다. 질문 없이 받아 주는 말만" if "?" in msg else None
     if parsed.get("replyOptions") and step in ("STEP_01", "STEP_03", "STEP_04"):
-        return f"{step}에서는 replyOptions를 쓰지 않는다 (다른 해석·바란 것을 대신 제시하지 않음). replyOptions: []"
+        # 이 단계는 답 예시를 보여 주지 않는다 (다른 해석·바란 것을 대신 제시하지 않음) → 서버가 버린다
+        parsed["replyOptions"] = []
+        parsed["_options_dropped"] = True
+    if parsed.get("transitionReady") and step == "STEP_05" and "?" in msg and would_finish(parsed, state) and "\n" in msg:
+        # 행동이 정해졌는데 확인 질문을 덧붙였다 → 서버가 질문 줄을 지우고 완료 처리 (다음 화면이 강도 입력)
+        parsed["userMessage"] = msg.split("\n")[0].strip()
+        parsed["_server_finished"] = True
+        return None
     if parsed.get("transitionReady") and step in ("STEP_01", "STEP_05") and "?" in msg:
         return ("단계를 마칠 때는 질문하지 않는다. " + ("받아 주는 한 문장 + 감정을 먼저 같이 정리해 보자는 한 문장"
                 if step == "STEP_01" else "받아 주는 한 문장만"))
     target = parsed.get("questionTarget")
+    if "?" in msg and step in ("STEP_02", "STEP_03", "STEP_04") and would_finish(parsed, state):
+        # 이번 답으로 단계 필수 항목이 다 확인됐는데 질문을 덧붙였다(다음 단계 질문, 이미 확인된 항목 등)
+        # → 서버가 단계 완료로 처리하고 다음 단계 첫 질문을 다시 받는다
+        parsed["transitionReady"] = True
+        parsed["_server_finished"] = True
+        if "\n" in msg:
+            parsed["userMessage"] = msg.split("\n")[0].strip()
+        return None
+    if "?" in msg and not target and not parsed.get("transitionReady"):
+        return f"질문을 했는데 questionTarget이 없다. {step}의 물을 것 {TARGETS[step]} 중 하나만 묻는다"
     if "?" in msg and target:
         if target not in TARGETS[step]:
             return f"{step}에서 물을 수 없는 항목({target})을 물었다. 물을 것: {TARGETS[step]}"
@@ -217,6 +284,36 @@ def check(parsed, state, listen):
     return None
 
 
+def would_finish(parsed, state):
+    ex = dict(parsed.get("extractedData") or {})
+    if state["step"] not in ("STEP_05", "STEP_06"):
+        ex["actionPlan"] = None
+    return all(state["slots"][k] is not None or ex.get(k) is not None for k in REQUIRED.get(state["step"], []))
+
+
+HEDGE_AFTER = 4  # 초. 응답이 이보다 늦으면 같은 요청을 하나 더 보내 먼저 온 쪽을 쓴다 (꼬리 지연 대응, 임의 값)
+
+
+def hedged_call(env, messages, temp, schema, timeout):
+    pool = cf.ThreadPoolExecutor(max_workers=2)
+    futs = [pool.submit(ev.call_llm, env, messages, temp, schema=schema, timeout=timeout)]
+    done, _ = cf.wait(futs, timeout=HEDGE_AFTER)
+    if not done:
+        futs.append(pool.submit(ev.call_llm, env, messages, temp, schema=schema, timeout=timeout))
+    err = None
+    try:
+        for fut in cf.as_completed(futs, timeout=timeout + HEDGE_AFTER):
+            try:
+                return fut.result()
+            except Exception as exc:  # noqa: BLE001 — 다른 요청이 남아 있으면 기다린다
+                err = exc
+    except cf.TimeoutError as exc:
+        err = TimeoutError(f"The read operation timed out ({exc})")
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    raise err if isinstance(err, (TimeoutError, OSError, RuntimeError)) else RuntimeError(str(err))
+
+
 def call_conversation(env, state, history, user_text, note, listen):
     messages = build_messages(state, history, user_text, note)
     calls = []
@@ -224,7 +321,7 @@ def call_conversation(env, state, history, user_text, note, listen):
         started = time.time()
         try:
             kind = "summary" if state["step"] == "STEP_06" else "conversation"
-            raw = ev.call_llm(env, messages, 0.2, schema=SCHEMA, timeout=TIMEOUTS[kind])
+            raw = hedged_call(env, messages, 0.2, SCHEMA, TIMEOUTS[kind])
             err = None
         except (urllib.error.URLError, RuntimeError, KeyError, TimeoutError, OSError) as exc:
             raw, err = None, str(exc)[:200]
@@ -252,6 +349,8 @@ def merge_slots(state, extracted):
             continue
         if v == "" and state["slots"][k]:  # 이미 값이 있으면 빈 값으로 덮지 않는다
             continue
+        if k == "actionPlan" and state["step"] not in ("STEP_05", "STEP_06"):
+            continue  # 실천 행동은 STEP_05에서 사용자가 직접 고른다 (앞 단계의 '하고 싶어'로 STEP_05를 건너뛰지 않음)
         old = state["slots"][k]
         if k == "alternativeThought" and old and state["step"] == "STEP_05" and old not in v:
             v = f"{old} / {v}"  # STEP_05에서 달라진 관점은 STEP_03 관점 뒤에 이어 붙인다
@@ -298,6 +397,9 @@ def process_turn(env, state, history, user_text, from_server=False, depth=0):
     if step == "STEP_01" and not depth:
         notes.append("(서버 지시: 상황이 충분히 드러났으면 transitionReady: true로 하고 받아 주는 한 문장 + 감정을 먼저 같이 정리해 보자는 한 문장만 쓴다. "
                      "triggerFactor를 채운다. 이때 생각이나 바람을 묻는 질문을 하지 않는다.)")
+    if state.get("back_note") and step != "STEP_06":
+        notes.append("(서버 지시: 사용자가 새 사건(" + state["back_note"] + ")을 다루기로 해서 단계를 되돌렸다. 대화 기록에 있는 이전 사건의 "
+                     "생각·답은 지웠다. 지금 사건 기준으로 현재 단계를 처음부터 진행한다. 이 지시 내용은 말하지 않는다.)")
     if state.get("listened") and not listen and not (from_server or depth):
         notes.append("(서버 지시: 지난 턴에는 질문 없이 들어 주기만 했다. 이번에는 사용자의 말을 받아 준 뒤 현재 단계에서 "
                      "아직 확인되지 않은 항목을 하나 묻는다. 사용자가 말한 생각·바람이 있으면 extractedData에 담는다. 이 지시 내용은 말하지 않는다.)")
@@ -330,18 +432,24 @@ def process_turn(env, state, history, user_text, from_server=False, depth=0):
             state["answered"].append(last)
 
     # 상담 호출과 2차 안전 분류기를 병렬로
+    # 분류기 결과를 먼저 기다리고, 위기면 상담 응답을 기다리지 않고 바로 안전 안내를 보낸다
     safety_future = None
-    with cf.ThreadPoolExecutor(max_workers=2) as pool:
-        if not from_server and not depth:
-            safety_future = pool.submit(classify_risk, env, history, user_text)
-        conv_future = pool.submit(call_conversation, env, state, history, user_text, "\n".join(notes), listen)
+    pool = cf.ThreadPoolExecutor(max_workers=2)
+    if not from_server and not depth:
+        safety_future = pool.submit(classify_risk, env, history, user_text)
+    conv_future = pool.submit(call_conversation, env, state, history, user_text, "\n".join(notes), listen)
+    if safety_future:
+        risk, category, safety_calls = safety_future.result()
+        res["calls"] += safety_calls
+    else:
+        risk, category = False, None
+    if risk:
+        pool.shutdown(wait=False, cancel_futures=True)
+        parsed = None
+    else:
         parsed, conv_calls = conv_future.result()
-        if safety_future:
-            risk, category, safety_calls = safety_future.result()
-            res["calls"] += safety_calls
-        else:
-            risk, category = False, None
-    res["calls"] += conv_calls
+        pool.shutdown(wait=False)
+        res["calls"] += conv_calls
 
     if safety_future and risk is None:  # 분류기 최종 실패 → Fail-Safe
         res.update(reply=FALLBACK["SAFETY_CHECK_FAILED"])
@@ -354,11 +462,21 @@ def process_turn(env, state, history, user_text, from_server=False, depth=0):
         state["status"] = "ABORTED_RISK"
         return res
     if parsed is None:  # 상담 호출 최종 실패 → 단계별 폴백 문장, 상태는 그대로
-        res.update(reply=FALLBACK[step])
+        res.update(reply=FALLBACK.get(f"{step}_START") if depth and f"{step}_START" in FALLBACK else FALLBACK[step])
+        if depth:  # 새 단계 첫 질문을 폴백으로 물었으니 그 항목을 방금 물은 것으로 둔다
+            state["last_target"] = next_target(state)
         res["events"].append("상담 호출 실패 → 폴백 문장")
         FALLBACKS.append({"step": step, "kind": "conversation"})
         return res
 
+    if parsed.pop("_options_dropped", False):
+        res["events"].append("허용되지 않은 단계의 replyOptions → 서버가 버림")
+    if parsed.pop("_server_finished", False):
+        res["events"].append("단계 목표가 채워졌는데 AI가 질문을 덧붙임 → 서버가 단계 완료로 처리")
+    msg, fixed = split_bubble(parsed["userMessage"])
+    if fixed:
+        parsed["userMessage"] = msg
+        res["events"].append("서버가 말풍선 줄바꿈 보정")
     res["parsed"] = parsed
     res["reply"] = parsed["userMessage"]
     res["options"] = parsed.get("replyOptions") or []
@@ -366,6 +484,12 @@ def process_turn(env, state, history, user_text, from_server=False, depth=0):
         state["options_shown"] = True
     history.append({"role": "user", "content": user_text, "text": user_text})
     history.append({"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False), "text": parsed["userMessage"]})
+    if step == "STEP_06":  # 정리는 이미 확인된 슬롯만 다듬는다. 비어 있던 칸을 새로 채우지 않는다
+        for k in ("initialThought", "alternativeThought", "actionPlan"):
+            if not state["slots"][k]:
+                parsed["extractedData"][k] = None
+        for k in ("situation", "triggerFactor", "underlyingNeed", "copingStrategy"):
+            parsed["extractedData"][k] = None
     merge_slots(state, parsed["extractedData"])
     state["last_target"] = parsed.get("questionTarget") if "?" in parsed["userMessage"] or res["options"] else None
     if res["options"] and step == "STEP_05":
@@ -387,6 +511,7 @@ def process_turn(env, state, history, user_text, from_server=False, depth=0):
     if back and (step, back) in BACK_ALLOWED and not depth:
         res["events"].append(f"되돌아가기 {step} → {back}")
         if back == "STEP_01":
+            state["back_note"] = user_text[:60]
             for k in SLOT_KEYS:
                 state["slots"][k] = None
             state["primaryEmotion"] = state["secondaryEmotion"] = state["preIntensity"] = None

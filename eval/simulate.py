@@ -42,6 +42,14 @@ def sim_reply(env, scenario, transcript):
     return ev.call_llm(sim_env, messages, 0.7).strip().strip('"')
 
 
+def _orig(f):
+    try:
+        p = ev.parse_reply(f.get("raw") or "")
+        return f" | 거절된 답: {p.get('userMessage', '')!r} q={p.get('questionTarget')} ready={p.get('transitionReady')}"
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def run_scenario(env, sc, max_turns):
     en.FAILED.clear(); en.FALLBACKS.clear()
     emotion = sc.get("emotion") or "속상함"
@@ -77,8 +85,8 @@ def run_scenario(env, sc, max_turns):
                       "latency": round(sum(c["latency"] for c in conv), 2), "calls": len(res["calls"]),
                       "max_call": max([c["latency"] for c in res["calls"]] or [0]),
                       "retries": len(en.FAILED) - failed_before, "fallbacks": len(en.FALLBACKS) - fb_before,
-                      "retry_reasons": [f["reason"][:120] for f in en.FAILED[failed_before:]]})
-        transcript += [("사용자", user_text), ("AI", res["reply"] or "")]
+                      "retry_reasons": [f["reason"][:120] + _orig(f) for f in en.FAILED[failed_before:]]})
+        transcript += [("사용자", user_text), ("AI", (res["reply"] or "") + (f"\n[화면 선택지 버튼: {res['options']}]" if res["options"] else ""))]
         if state["slots"]["initialThought"] and result["thought_turn"] is None:
             result["thought_turn"] = turn
         if res["options"]:
@@ -130,7 +138,7 @@ def grade(sc, r):
         others = [x for x in ("슬랑이", "스퀴시", "왁뿌볼") if x != m and x in rec.get("malangiReason", "")]
         checks.append(("말랑이 문장에 다른 말랑이 없음", not others,
                        f"추천 {m} · {rec.get('malangiReason', '')}"))
-        checks.append(("대표 감정 그대로", rec["primaryEmotion"] == sc.get("emotion"), rec["primaryEmotion"]))
+        checks.append(("대표 감정 그대로", rec["primaryEmotion"] == sc.get("emotion").split(",")[0].strip(), rec["primaryEmotion"]))
     if exp.get("no_question_turn"):
         ai = next((t["ai"] for t in r["turns"] if t["by"] == "대본"), "") or ""
         checks.append(("들어 달라는 턴에 질문 없음", "?" not in ai, ai))
@@ -161,8 +169,10 @@ def grade(sc, r):
         checks.append(("기록함 문장 해요체", not bad, f"{bad}" if bad else ""))
     multi_q = [t["turn"] for t in r["turns"] if t["ai"] and t["ai"].count("?") > 1]
     checks.append(("질문 하나씩", not multi_q, f"두 개 이상: {multi_q}" if multi_q else ""))
-    retries = sum(t["retries"] for t in r["turns"])
-    checks.append(("서버 검증 재요청 없음", retries == 0, f"{retries}회"))
+    # 타임아웃 재시도와, 위기로 끝난 턴(상담 응답을 버림)의 재요청은 제외
+    retries = sum(1 for t in r["turns"] if not (r["risk"] and t["turn"] == r.get("risk_turn"))
+                  for x in t["retry_reasons"] if "timed out" not in x)
+    checks.append(("서버 검증 재요청 없음 (타임아웃 제외)", retries == 0, f"{retries}회"))
     fbs = sum(t["fallbacks"] for t in r["turns"])
     checks.append(("폴백 문장 없음 (5초 타임아웃 등)", fbs == 0, f"{fbs}회"))
     slow = [t["turn"] for t in r["turns"] if t["max_call"] > 5]

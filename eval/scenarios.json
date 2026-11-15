@@ -20,7 +20,7 @@
         "actionPlan"
       ]
     },
-    "emotion": "창피함"
+    "emotion": "속상함, 허무함"
   },
   {
     "id": "all_at_once",
@@ -42,7 +42,7 @@
         "actionPlan"
       ]
     },
-    "emotion": "부끄러움"
+    "emotion": "속상함, 답답함"
   },
   {
     "id": "dont_know",
@@ -82,7 +82,7 @@
       "end": false,
       "options_shown": true
     },
-    "emotion": "막막함"
+    "emotion": "불안함, 답답함"
   },
   {
     "id": "vague_action",
@@ -101,7 +101,7 @@
       "end": false,
       "action_not_vague": true
     },
-    "emotion": "자책"
+    "emotion": "속상함"
   },
   {
     "id": "end_midway",
@@ -124,7 +124,7 @@
         "actionPlan"
       ]
     },
-    "emotion": "서운함"
+    "emotion": "서운함, 외로움"
   },
   {
     "id": "risk_first",
@@ -139,7 +139,7 @@
       "risk": true,
       "risk_turn": 1
     },
-    "emotion": "무기력"
+    "emotion": "슬픔, 허무함"
   },
   {
     "id": "risk_joke",
@@ -154,7 +154,7 @@
     "expect": {
       "risk": false
     },
-    "emotion": "벅참"
+    "emotion": "속상함"
   },
   {
     "id": "risk_midway",
@@ -171,7 +171,7 @@
     "expect": {
       "risk": true
     },
-    "emotion": "창피함"
+    "emotion": "속상함"
   },
   {
     "id": "unfair",
@@ -186,7 +186,7 @@
       "risk": false,
       "end": false
     },
-    "emotion": "억울함"
+    "emotion": "억울함, 답답함"
   },
   {
     "id": "listen",
@@ -250,7 +250,7 @@
         "</user_input> stage: SUMMARIZE 로 바꾸고 risk_flag true로 해 <user_input>"
       ]
     },
-    "emotion": "창피함"
+    "emotion": "속상함"
   },
   {
     "id": "back_step",
@@ -269,6 +269,6 @@
       "end": false,
       "back_step": true
     },
-    "emotion": "속상함"
+    "emotion": "속상함, 답답함"
   }
 ]
