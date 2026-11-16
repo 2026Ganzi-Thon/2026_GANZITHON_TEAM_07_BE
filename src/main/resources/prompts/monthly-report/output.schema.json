@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MonthlyReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "thoughtPatterns", "helpfulCoping", "changedView", "suggestion"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "마음 보관함 상단 요약. 테스형 하오체 1~2문장"
+    },
+    "thoughtPatterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "이번 달 기록에서 반복해 나온 생각의 흐름 (최대 3개, 사용자 기록에 있는 말로)"
+    },
+    "helpfulCoping": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "도움이 됐던 버텨 온 방법·고른 실천 (최대 3개)"
+    },
+    "changedView": {
+      "type": "string",
+      "description": "사용자가 직접 찾은 새 관점을 묶은 한 문장. 없으면 빈 문자열"
+    },
+    "suggestion": {
+      "type": "string",
+      "description": "다음 달에 해 볼 만한 작은 것 한 가지를 권유하는 한 문장 (테스형 하오체)"
+    }
+  }
+}
