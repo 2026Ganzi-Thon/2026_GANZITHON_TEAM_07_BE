@@ -29,7 +29,10 @@ public interface CounselingSessionStore {
 
     boolean ownsMalangiSession(long userId, long malangiSessionId);
 
-    record StoredMessage(long id, MessageSender sender, String content) {}
+    /** 세션의 모든 메시지를 오래된 순으로 (기록함 대화 다시 보기). */
+    List<StoredMessage> allMessages(long sessionId);
+
+    record StoredMessage(long id, MessageSender sender, String content, CounselingStep step, LocalDateTime createdAt) {}
 
     record ResultRecord(long sessionId, long userId, String situation, String primaryEmotion, Integer preIntensity,
             int postIntensity, String summary, String recommendedMalangi, List<Map<String, Object>> timeline,

@@ -51,6 +51,9 @@ class CounselingResultEntity {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "is_hidden", nullable = false)
+    private boolean hidden;
+
     protected CounselingResultEntity() {}
 
     CounselingResultEntity(long sessionId, long userId, String situation, String primaryEmotion, Integer preIntensity,
@@ -78,4 +81,6 @@ class CounselingResultEntity {
     String recommendedMalangi() { return recommendedMalangi; }
     List<Map<String, Object>> timeline() { return timeline; }
     LocalDateTime createdAt() { return createdAt; }
+    boolean hidden() { return hidden; }
+    void hide(boolean hidden) { this.hidden = hidden; }
 }

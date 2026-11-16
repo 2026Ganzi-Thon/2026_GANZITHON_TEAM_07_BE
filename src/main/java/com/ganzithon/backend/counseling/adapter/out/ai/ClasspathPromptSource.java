@@ -28,6 +28,11 @@ class ClasspathPromptSource implements PromptSource {
         return read("safety-classifier/system.md");
     }
 
+    @Override
+    public String monthlyReport() {
+        return read("monthly-report/system.md");
+    }
+
     private static String read(String path) {
         try (InputStream in = new ClassPathResource(BASE + path).getInputStream()) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);

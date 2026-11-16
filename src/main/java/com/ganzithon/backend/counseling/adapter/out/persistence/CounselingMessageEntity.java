@@ -48,6 +48,8 @@ class CounselingMessageEntity {
     Long id() { return id; }
     String senderType() { return senderType; }
     String messageContent() { return messageContent; }
+    String step() { return step; }
+    LocalDateTime createdAt() { return createdAt; }
 
     void markRisk() {
         this.riskDetected = true;

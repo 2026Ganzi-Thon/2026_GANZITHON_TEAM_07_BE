@@ -12,6 +12,9 @@ public interface CounselingAi {
 
     SafetyVerdict classify(String systemPrompt, String userContent);
 
+    /** 월간 분석 레포트 (F-12, 테스형의 분석 레포트). */
+    ReportReply monthlyReport(String systemPrompt, String userContent);
+
     /**
      * @param cachedSystem 공통 프롬프트 + 단계 프롬프트 (세션 간에 같아 캐시한다)
      * @param stateSystem 현재 상태 블록 (매 턴 바뀐다)
@@ -28,6 +31,9 @@ public interface CounselingAi {
             Map<String, String> extracted, List<String> replyOptions, boolean endRequested, String backToStep) {}
 
     record SafetyVerdict(boolean riskFlag, String category) {}
+
+    record ReportReply(String summary, List<String> thoughtPatterns, List<String> helpfulCoping, String changedView,
+            String suggestion) {}
 
     /** 호출 실패(네트워크, 형식 오류, 키 없음 등). 애플리케이션이 재시도·폴백한다. */
     class Unavailable extends RuntimeException {

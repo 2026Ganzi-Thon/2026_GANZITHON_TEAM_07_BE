@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,15 +23,20 @@ class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiRew
     private final CounselingSessionJpaRepository sessions;
     private final CounselingMessageJpaRepository messages;
     private final CounselingResultJpaRepository results;
+    private final CounselingReportJpaRepository reports;
     private final JdbcTemplate jdbc;
 
     CounselingPersistenceAdapter(CounselingSessionJpaRepository sessions, CounselingMessageJpaRepository messages,
-            CounselingResultJpaRepository results, JdbcTemplate jdbc) {
+            CounselingResultJpaRepository results, CounselingReportJpaRepository reports, JdbcTemplate jdbc) {
         this.sessions = sessions;
         this.messages = messages;
         this.results = results;
+        this.reports = reports;
         this.jdbc = jdbc;
     }
+
+    private static final LocalDateTime MIN_TIME = LocalDateTime.of(1970, 1, 1, 0, 0);
+    private static final LocalDateTime MAX_TIME = LocalDateTime.of(9999, 1, 1, 0, 0);
 
     @Override
     @Transactional
@@ -80,8 +86,7 @@ class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiRew
     public List<StoredMessage> recentMessages(long sessionId, int limit) {
         List<StoredMessage> recent = new ArrayList<>();
         for (CounselingMessageEntity message : messages.findRecent(sessionId, PageRequest.of(0, limit))) {
-            recent.add(new StoredMessage(message.id(), MessageSender.valueOf(message.senderType()),
-                    message.messageContent()));
+            recent.add(stored(message));
         }
         Collections.reverse(recent);
         return recent;
@@ -105,15 +110,68 @@ class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiRew
 
     @Override
     @Transactional(readOnly = true)
-    public List<StoredResult> findPage(long userId, int page, int size) {
-        return results.findPage(userId, PageRequest.of(page, size)).stream().map(CounselingPersistenceAdapter::stored)
-                .toList();
+    public List<StoredMessage> allMessages(long sessionId) {
+        return messages.findAllBySession(sessionId).stream().map(CounselingPersistenceAdapter::stored).toList();
+    }
+
+    private static StoredMessage stored(CounselingMessageEntity message) {
+        return new StoredMessage(message.id(), MessageSender.valueOf(message.senderType()), message.messageContent(),
+                CounselingStep.valueOf(message.step()), message.createdAt());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public long count(long userId) {
-        return results.countByUser(userId);
+    public List<StoredResult> findPage(long userId, LocalDateTime from, LocalDateTime to, int page, int size) {
+        return results.findPage(userId, orMin(from), orMax(to), PageRequest.of(page, size)).stream()
+                .map(CounselingPersistenceAdapter::stored).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long count(long userId, LocalDateTime from, LocalDateTime to) {
+        return results.countByUser(userId, orMin(from), orMax(to));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StoredResult> findAll(long userId, LocalDateTime from, LocalDateTime to) {
+        return results.findAllBetween(userId, orMin(from), orMax(to)).stream().map(CounselingPersistenceAdapter::stored)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public boolean setHidden(long userId, long resultId, boolean hidden) {
+        CounselingResultEntity result = results.findOwned(resultId, userId).orElse(null);
+        if (result == null) return false;
+        result.hide(hidden);
+        return true;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<StoredReport> findReport(long userId, int year, int month) {
+        return reports.findPeriod(userId, year, month).map(r -> new StoredReport(r.periodYear(), r.periodMonth(),
+                r.sourceSignature(), r.content(), r.createdAt()));
+    }
+
+    @Override
+    @Transactional
+    public StoredReport saveReport(long userId, int year, int month, String signature, Map<String, Object> content,
+            LocalDateTime now) {
+        CounselingReportEntity report = reports.findPeriod(userId, year, month)
+                .orElseGet(() -> new CounselingReportEntity(userId, year, month));
+        report.update(signature, content, now);
+        reports.save(report);
+        return new StoredReport(year, month, signature, content, now);
+    }
+
+    private static LocalDateTime orMin(LocalDateTime time) {
+        return time == null ? MIN_TIME : time;
+    }
+
+    private static LocalDateTime orMax(LocalDateTime time) {
+        return time == null ? MAX_TIME : time;
     }
 
     @Override
@@ -125,7 +183,7 @@ class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiRew
     private static StoredResult stored(CounselingResultEntity r) {
         return new StoredResult(r.id(), r.sessionId(), r.createdAt(), r.situation(), r.primaryEmotion(),
                 r.preIntensity(), r.postIntensity(), r.summary(), r.recommendedMalangi(),
-                r.timeline() == null ? List.of() : new ArrayList<>(r.timeline()));
+                r.timeline() == null ? List.of() : new ArrayList<>(r.timeline()), r.hidden());
     }
 
     /** 추천 말랑이 자동 해금 (features.md F-04). 행이 없으면 해금된 상태로 만든다. */

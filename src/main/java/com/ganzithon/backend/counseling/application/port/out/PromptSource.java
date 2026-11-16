@@ -9,4 +9,7 @@ public interface PromptSource {
     String step(CounselingStep step);
 
     String safety();
+
+    /** 월간 분석 레포트 (F-12). */
+    String monthlyReport();
 }

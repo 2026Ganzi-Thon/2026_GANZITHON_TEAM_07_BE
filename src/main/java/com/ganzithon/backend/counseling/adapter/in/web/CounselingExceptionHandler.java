@@ -15,6 +15,7 @@ public class CounselingExceptionHandler {
             case SESSION_NOT_FOUND, RECORD_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case SESSION_CLOSED, INPUT_NOT_EXPECTED -> HttpStatus.CONFLICT;
             case INVALID_INPUT, EMOTION_REQUIRED -> HttpStatus.BAD_REQUEST;
+            case REPORT_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
         };
         return ResponseEntity.status(status).body(ApiEnvelope.failure(
                 failure.code().name(), failure.code().message(), null));

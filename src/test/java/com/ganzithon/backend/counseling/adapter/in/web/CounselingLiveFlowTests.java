@@ -49,7 +49,8 @@ class CounselingLiveFlowTests {
     void basic() throws Exception {
         Run run = run("basic", "알바하다가 또 실수했어. 점장님이 손님 앞에서 뭐라 해서 너무 창피했어", "속상함", "허무함", 7, Map.of(
                 "STEP_01", List.of("주문 두 개를 바꿔 냈고 점장님이 손님 앞에서 크게 뭐라고 했어"),
-                "STEP_02", List.of("나는 진짜 일 못하는 사람인가 봐 싶었어", "손님 앞에서 지적받은 게 제일 컸어"),
+                "STEP_02", List.of("손님들 다 보는 앞에서 그러니까 너무 창피했어", "나는 진짜 일 못하는 사람인가 봐 싶었어",
+                        "손님 앞에서 지적받은 게 제일 컸어"),
                 "STEP_03", List.of("요즘 실수가 계속 나와서 그런 생각이 들었어", "그날 손님이 엄청 몰렸고 좀 피곤했어",
                         "손님 앞 말고 따로 말해주길 바랐어"),
                 "STEP_04", List.of("끝나고 친구랑 편의점에서 얘기하면 좀 풀려"),
@@ -63,7 +64,7 @@ class CounselingLiveFlowTests {
     void picksThoughtAndActionFromChips() throws Exception {
         Run run = run("chips", "시험이 3일 남았는데 계속 유튜브만 봤어", "불안함", "답답함", 8, Map.of(
                 "STEP_01", List.of("공부해야 하는데 3일 내내 폰만 보다가 밤이 됐어"),
-                "STEP_02", List.of(PICK_CHIP, "시험이 코앞인데 아무것도 안 한 게 제일 컸어"),
+                "STEP_02", List.of("시험은 다가오는데 손을 못 대니까 계속 불안했어", PICK_CHIP, "시험이 코앞인데 아무것도 안 한 게 제일 컸어"),
                 "STEP_03", List.of("매번 이렇게 미뤄서", "요즘 알바가 늘어서 피곤하기도 했어", "그래도 조금이라도 해 두고 싶었어"),
                 "STEP_04", List.of("딱히 없어"),
                 "STEP_05", List.of("완전히 의지가 없는 건 아닌 것 같아", "시험 전에 한 번은 다 보고 싶어", "모르겠어", PICK_CHIP)));
@@ -77,7 +78,7 @@ class CounselingLiveFlowTests {
     void endsMidwayAndStillRecords() throws Exception {
         Run run = run("end_midway", "친구가 내 생일을 까먹었어. 다른 친구 생일은 다 챙기면서", "서운함", "외로움", 6, Map.of(
                 "STEP_01", List.of("어제가 내 생일이었는데 연락 하나 없었어"),
-                "STEP_02", List.of("나는 별로 중요한 사람이 아닌가 봐 싶었어"),
+                "STEP_02", List.of("하루 종일 연락 기다렸는데 아무것도 없으니까 더 서운했어", "나는 별로 중요한 사람이 아닌가 봐 싶었어"),
                 "STEP_03", List.of("오늘은 그만할래")));
         assertThat(run.steps).contains("COMPLETE");
         run.assertWireframe();
@@ -95,7 +96,7 @@ class CounselingLiveFlowTests {
     void stopsOnCrisisInTheMiddle() throws Exception {
         Run run = run("risk_midway", "팀플에서 나만 일했는데 점수는 똑같이 나왔어", "억울함", "답답함", 8, Map.of(
                 "STEP_01", List.of("자료 조사부터 발표 자료까지 내가 다 만들었어"),
-                "STEP_02", List.of("나만 손해 보는 바보 같았어"),
+                "STEP_02", List.of("나만 밤새웠는데 다 똑같이 받으니까 진짜 화났어", "나만 손해 보는 바보 같았어"),
                 "STEP_03", List.of("요즘은 그냥 다 끝내 버리고 사라지고 싶어")));
         assertThat(run.risk).isTrue();
         assertThat(run.steps).doesNotContain("COMPLETE");
@@ -139,8 +140,10 @@ class CounselingLiveFlowTests {
                 if (trigger == null || trigger.isBlank()) run.problems.add("감정 기록 카드에 유발 상황이 비었다");
                 String card = CARD.formatted(primary, secondary == null ? "null" : quote(secondary), pre);
                 body = call(token, "/" + sessionId + "/emotion", card, 200);
-                run.turn("감정 기록 카드", card, body);
+                if (JsonPath.read(body, "$.data.aiMessage") != null) run.problems.add("카드 저장 뒤 테스형이 먼저 말했다");
+                run.log.add("**감정 기록 카드 저장:** " + card + "\n");
                 run.afterCard = true;
+                run.waitingThoughtQuestion = true;
                 continue;
             }
             if (next.equals("POST_INTENSITY")) {
@@ -174,7 +177,7 @@ class CounselingLiveFlowTests {
         final List<String> problems = new ArrayList<>();
         boolean risk;
         boolean afterCard;
-        boolean firstThoughtQuestion = true;
+        boolean waitingThoughtQuestion;
         boolean listenTurnHadNoQuestion;
         int chipsSeen;
         String recommended;
@@ -205,10 +208,12 @@ class CounselingLiveFlowTests {
             if (!nextInput.equals("MESSAGE") && (ai.contains("?") || ai.contains("골라") || !chips.isEmpty())) {
                 problems.add("다음 입력이 " + nextInput + "인데 질문·후보를 보여 줬다: " + ai);
             }
-            if (step.equals("STEP_02") && firstThoughtQuestion && who.equals("감정 기록 카드")) {
-                firstThoughtQuestion = false;
-                if (chips.isEmpty()) problems.add("생각 질문에 답 예시 칩이 없다");
-                else chipsSeen++;
+            if (waitingThoughtQuestion) { // 카드 저장 뒤 사용자가 이어 말한 첫 응답: 생각 질문이면 칩이 붙는다
+                waitingThoughtQuestion = false;
+                if (step.equals("STEP_02") && ai.contains("?")) {
+                    if (chips.isEmpty()) problems.add("생각 질문에 답 예시 칩이 없다");
+                    else chipsSeen++;
+                }
             }
         }
 
