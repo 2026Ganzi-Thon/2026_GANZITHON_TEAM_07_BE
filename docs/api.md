@@ -423,6 +423,7 @@ POST /sessions (첫 메시지, STEP_01)
 | 400 | `INVALID_INPUT` | 빈 메시지, 2000자 초과, 강도 범위 밖, 남의 말랑이 세션 ID |
 | 400 | `EMOTION_REQUIRED` | 감정 없이 완료 요청 |
 | 404 | `SESSION_NOT_FOUND` | 세션이 없거나 본인 세션이 아님 |
+| 404 | `RECORD_NOT_FOUND` | 기록이 없거나 본인 기록이 아님 (기록함 API) |
 | 409 | `SESSION_CLOSED` | 이미 끝난 세션(완료, 중단, 위기) |
 | 409 | `INPUT_NOT_EXPECTED` | `nextInput`과 다른 입력 |
 
@@ -431,11 +432,14 @@ POST /sessions (첫 메시지, STEP_01)
 
 ### 3-4. 마음 기록함 (F-08)
 
+상담을 완료(`/complete`)하면 `counseling_results`에 저장되고 기록함에 나온다. 위기로 멈춘 세션과 중단한 세션은 결과가 없어 나오지 않는다. 문장 칸은 정리(STEP 06)에서 만든 사용자 1인칭 해요체 문장이다(와이어프레임).
+
 #### [GET] `/api/v1/records` — 상담 결과 목록 조회 (페이징)
 - **인증:** 필요 (`Bearer <token>`)
 - **Query Parameters:**
   - `page`: 페이지 번호 (기본값: 0)
-  - `size`: 페이지 크기 (기본값: 10)
+  - `size`: 페이지 크기 (기본값: 10, 1~50)
+- 최근 기록부터 정렬한다. 범위를 벗어나면 `400 INVALID_INPUT`.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -445,11 +449,13 @@ POST /sessions (첫 메시지, STEP_01)
       {
         "resultId": 101,
         "sessionId": 501,
-        "createdAt": "2026-11-07T20:30:00",
+        "createdAt": "2026-11-16T12:30:00",
         "primaryEmotion": "속상함",
-        "preIntensity": 8,
+        "secondaryEmotion": "허무함",
+        "preIntensity": 7,
         "postIntensity": 4,
-        "summary": "회의 중 느낀 소외감 속에서 팀원들의 상황을 새롭게 바라보고 실천을 도출함.",
+        "intensityChange": -3,
+        "summary": "손님 앞에서 지적을 받아 스스로가 일을 못한다고 느꼈어요",
         "recommendedMalangi": "SQUISHY"
       }
     ],
@@ -462,10 +468,12 @@ POST /sessions (첫 메시지, STEP_01)
   "error": null
 }
 ```
+- `summary`는 기록함 카드 제목이다.
 
 #### [GET] `/api/v1/records/{resultId}` — 상담 결과 상세 조회 (타임라인 포함)
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `resultId`
+- 본인 기록이 아니거나 없으면 `404 RECORD_NOT_FOUND`.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -473,65 +481,45 @@ POST /sessions (첫 메시지, STEP_01)
   "data": {
     "resultId": 101,
     "sessionId": 501,
-    "createdAt": "2026-11-07T20:30:00",
-    "situation": "팀 회의에서 내 의견이 가볍게 무시당한 것 같아 마음이 답답함.",
+    "createdAt": "2026-11-16T12:30:00",
+    "situation": "알바 중 주문을 바꿔 내서 점장님이 손님 앞에서 지적함",
+    "triggerFactor": "손님 앞에서 점장님에게 지적받음",
     "primaryEmotion": "속상함",
-    "preIntensity": 8,
+    "secondaryEmotion": "허무함",
+    "preIntensity": 7,
     "postIntensity": 4,
-    "summary": "회의 중 느낀 소외감 속에서 팀원들의 상황을 새롭게 바라보고, 작은 실천을 도출함.",
+    "intensityChange": -3,
+    "summary": "손님 앞에서 지적을 받아 스스로가 일을 못한다고 느꼈어요",
+    "keySentence": "“나는 일 못하는 사람인가 봐”보다 “실수 하나로 일 못하는 사람은 아닌 것 같아”가 지금은 더 가까운 말 같아요",
+    "initialThought": "나는 진짜 일 못하는 사람인가 봐요.",
+    "alternativeThought": "그날 손님이 몰리고 피곤했던 사정도 있었어요.",
+    "underlyingNeed": "손님 앞 말고 따로 말해주길 바랐다",
+    "copingStrategy": "친구랑 편의점에서 이야기하기",
+    "actionPlan": "다음 근무 때 주문이 나갈 때 영수증과 한 번 더 대조해 보기",
     "recommendedMalangi": "SQUISHY",
+    "malangiReason": "속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요.",
     "timeline": [
-      {
-        "order": 1,
-        "triggerMessageId": 3,
-        "step": "STEP_02",
-        "emotion": "속상함",
-        "intensity": 8,
-        "thought": "팀원들이 나를 무능하다고 생각하는구나",
-        "timestamp": "2026-11-07T20:31:10"
-      },
-      {
-        "order": 2,
-        "triggerMessageId": 7,
-        "step": "STEP_03",
-        "alternativeThought": "마감 시간이 촉박해서 안건을 서둘러 넘겼을 수 있다",
-        "underlyingNeed": "내 의견이 존중받고 팀에 기여하고 싶은 욕구",
-        "timestamp": "2026-11-07T20:33:45"
-      },
-      {
-        "order": 3,
-        "triggerMessageId": 9,
-        "step": "STEP_04",
-        "copingStrategy": "과거에도 서운할 때 산책을 하거나 차분히 생각 정리를 했음",
-        "timestamp": "2026-11-07T20:35:12"
-      },
-      {
-        "order": 4,
-        "triggerMessageId": 11,
-        "step": "STEP_05",
-        "actionPlan": "다음 회의 전에 메모로 안건을 먼저 정리해서 공유해보기",
-        "timestamp": "2026-11-07T20:36:50"
-      },
-      {
-        "order": 5,
-        "triggerMessageId": 12,
-        "step": "STEP_06",
-        "intensity": 4,
-        "intensityChange": -4,
-        "recommendedMalangi": "SQUISHY",
-        "timestamp": "2026-11-07T20:38:00"
-      }
+      { "order": 1, "triggerMessageId": 2, "step": "STEP_01", "situation": "...", "triggerFactor": "...", "timestamp": "2026-11-16T12:20:10" },
+      { "order": 2, "triggerMessageId": 5, "step": "STEP_02", "emotion": "속상함", "secondaryEmotion": "허무함", "intensity": 7, "thought": "나는 진짜 일 못하는 사람인가 봐", "timestamp": "..." },
+      { "order": 3, "triggerMessageId": 11, "step": "STEP_03", "alternativeThought": "...", "underlyingNeed": "...", "timestamp": "..." },
+      { "order": 4, "triggerMessageId": 13, "step": "STEP_04", "copingStrategy": "...", "timestamp": "..." },
+      { "order": 5, "triggerMessageId": 19, "step": "STEP_05", "alternativeThought": "...", "actionPlan": "...", "timestamp": "..." },
+      { "order": 6, "triggerMessageId": 21, "step": "STEP_06", "intensity": 4, "intensityChange": -3, "recommendedMalangi": "SQUISHY", "summary": "...", "keySentence": "...", "malangiReason": "...", "record": { "initialThought": "...", "alternativeThought": "...", "actionPlan": "..." }, "timestamp": "..." }
     ]
   },
   "error": null
 }
 ```
+- 와이어프레임 상세 화면: `initialThought` = "그때의 생각", `alternativeThought` = "새로 본 관점", `actionPlan` = "고른 실천". 대화에서 확인하지 못한 칸은 `null`.
+- 건너뛴 단계는 타임라인 항목이 없을 수 있다. 상세 칸은 타임라인 마지막 STEP_06 항목을 기준으로 채운다.
 
 #### [DELETE] `/api/v1/records/{resultId}` — 기록 삭제
 - **인증:** 필요 (`Bearer <token>`)
+- **처리 내용:** 기록과 연결된 상담 세션·메시지까지 영구 삭제한다. 본인 기록이 아니거나 없으면 `404 RECORD_NOT_FOUND`.
 - **응답 (HTTP 204 No Content):** (본문 없음)
 
 ---
+
 
 ### 3-5. 말랑이 인벤토리, 상태 관리 및 만지기 세션 라이프사이클 (F-04, F-05, F-06)
 

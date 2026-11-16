@@ -78,6 +78,7 @@ application 의존, 입력 어댑터의 서비스 구현체 직접 의존을 검
 - MySQL 8.4 / JPA / Flyway: 회원·Refresh Token·말랑이 보유 테이블을 V1으로 생성, V2에서 기존 회원의 기본 SLANGI 보정, V3에서 말랑이 상태 JSON과 만지기 세션 테이블 추가
 - Spring Security / JWT Resource Server: 인증·OAuth 공개 경로 외에는 Access Token을 요구하며 Refresh Token은 API 인증에 사용할 수 없음
 - F-01·02·03·07·09 상담 API: `counseling` 모듈. 와이어프레임 흐름(첫 메시지 → 감정 기록 카드 → STEP_02~05 → 상담 후 강도 → STEP_06 정리), 위기 1차 서버 필터 + 2차 AI 분류기, 결과·타임라인 저장, 추천 말랑이 해금
+- F-08 마음 기록함: `/api/v1/records` 목록(페이징)·상세(타임라인)·삭제. 상담 결과(`counseling_results`)를 읽고, 삭제는 연결 세션까지 지운다
 - Spring AI + Anthropic(Claude): `counseling/adapter/out/ai`. 구조화 출력(JSON Schema), 시스템 프롬프트 캐싱, 호출별 타임아웃·1회 재시도·기본 문장은 서비스가 처리. 프롬프트는 `src/main/resources/prompts`
 - Actuator: 기본 health endpoint만 HTTP 노출
 - Swagger UI와 OpenAPI: 기존 경로 유지, 기본 비활성화·로컬 활성화
