@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SafetyClassification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "riskFlag",
+    "category"
+  ],
+  "properties": {
+    "riskFlag": {
+      "type": "boolean",
+      "description": "위기 신호가 있으면 true"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "SELF_HARM",
+        "HARM_OTHERS",
+        "ABUSE"
+      ],
+      "description": "감지 범주 (safety.md 감지 대상 위험 범주)"
+    }
+  }
+}

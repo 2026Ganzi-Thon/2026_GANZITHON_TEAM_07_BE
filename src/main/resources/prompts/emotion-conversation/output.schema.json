@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmotionConversationReplyV5",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "userMessage",
+    "transitionReady",
+    "extractedData"
+  ],
+  "properties": {
+    "userMessage": {
+      "type": "string",
+      "description": "사용자에게 보여 줄 말 (05번 이슈)"
+    },
+    "transitionReady": {
+      "type": "boolean",
+      "description": "현재 단계 목표 충족 → 다음 단계 전이 추천. 서버가 슬롯으로 최종 판단 (05번 이슈)"
+    },
+    "extractedData": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "이번 메시지로 새로 확인되거나 바뀐 슬롯 (05번 이슈, session_state.slots 이름). null=변화 없음, \"\"=없다·모르겠다고 답함",
+      "required": [
+        "situation",
+        "triggerFactor",
+        "initialThought",
+        "alternativeThought",
+        "underlyingNeed",
+        "copingStrategy",
+        "actionPlan",
+        "summary",
+        "keySentence",
+        "malangiReason"
+      ],
+      "properties": {
+        "situation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "사용자가 겪은 구체적인 사건·시점·환경·핵심 어려움"
+        },
+        "triggerFactor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "감정을 자극한 직접적인 계기"
+        },
+        "initialThought": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "그 순간 떠오른 최초의 자동적 사고"
+        },
+        "alternativeThought": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "새로운 대안적 관점이나 해석"
+        },
+        "underlyingNeed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "당시 진정으로 바랐던 핵심 욕구"
+        },
+        "copingStrategy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "버텨 온 방법·도움이 된 방법·문제가 덜했던 순간"
+        },
+        "actionPlan": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "사용자가 직접 고른 작은 실천 행동"
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "STEP_06: 마음 기록함 카드 제목 한 줄, 사용자 1인칭 해요체 (counseling_results.summary)"
+        },
+        "keySentence": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "STEP_06: 추천 화면 '대화에서 남은 문장' (와이어프레임, 확장)"
+        },
+        "malangiReason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "STEP_06: 서버가 정한 추천 말랑이 추천 문장 한 줄 (api.md /complete reason)"
+        }
+      }
+    },
+    "questionTarget": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "확장: userMessage의 질문이 묻는 항목. 질문이 없으면 null. 서버 검증용"
+    },
+    "endRequested": {
+      "type": "boolean",
+      "description": "확장: 사용자 상담 종료 요청"
+    },
+    "backToStep": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "STEP_01",
+            "STEP_03"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "확장: 되돌아가기 제안 (process.md 운영 원칙 4). 허용 여부는 서버가 판단"
+    },
+    "replyOptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "확장: 질문 아래 눌러서 고르는 답 예시 (STEP_02 생각 질문, STEP_05 행동 후보). 그 외 []"
+    }
+  }
+}
