@@ -3,10 +3,12 @@ package com.ganzithon.backend.counseling.adapter.in.web;
 import static com.ganzithon.backend.counseling.adapter.in.web.ScriptedCounselingAi.reply;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ganzithon.backend.counseling.application.port.out.CounselingAi;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +135,7 @@ class CounselingApiTests {
                 "summary", "알바 중 손님 앞에서 지적받아 속상했어요",
                 "keySentence", "“일 못하는 사람인가 봐”보다 “손님이 몰린 날이었다”가 지금은 더 가까운 말 같아요",
                 "malangiReason", "속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요."), List.of()));
-        call(token, "/" + sessionId + "/complete", "{\"postIntensity\":4}")
+        MvcResult completed = call(token, "/" + sessionId + "/complete", "{\"postIntensity\":4}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.preIntensity").value(7))
@@ -142,7 +144,9 @@ class CounselingApiTests {
                 .andExpect(jsonPath("$.data.summary").value("알바 중 손님 앞에서 지적받아 속상했어요"))
                 .andExpect(jsonPath("$.data.record.initialThought").value("나는 일 못하는 사람인가 봐요."))
                 .andExpect(jsonPath("$.data.recommendedMalangi.type").value("SQUISHY"))
-                .andExpect(jsonPath("$.data.recommendedMalangi.isNewlyUnlocked").value(true));
+                .andExpect(jsonPath("$.data.recommendedMalangi.isNewlyUnlocked").value(true))
+                .andReturn();
+        long resultId = ((Number) JsonPath.read(completed.getResponse().getContentAsString(), "$.data.resultId")).longValue();
 
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM counseling_results WHERE session_id = ?",
                 Integer.class, sessionId)).isEqualTo(1);
@@ -150,6 +154,27 @@ class CounselingApiTests {
                 + "WHERE u.email = ? AND um.malangi_type = 'SQUISHY'", Boolean.class, "counsel-flow@example.com")).isTrue();
         // 끝난 세션에는 더 보낼 수 없다
         send(token, sessionId, "하나 더").andExpect(status().isConflict());
+
+        // 마음 기록함: 목록과 상세 (그때의 생각, 새로 본 관점, 고른 실천, 버텨 온 방법, 남은 문장)
+        mockMvc.perform(get("/api/v1/records").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].resultId").value(resultId))
+                .andExpect(jsonPath("$.data.content[0].summary").value("알바 중 손님 앞에서 지적받아 속상했어요"))
+                .andExpect(jsonPath("$.data.content[0].secondaryEmotion").value("허무함"))
+                .andExpect(jsonPath("$.data.content[0].intensityChange").value(-3));
+        mockMvc.perform(get("/api/v1/records/" + resultId).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.situation").value("알바 중 주문을 바꿔 내서 점장님이 손님 앞에서 지적함"))
+                .andExpect(jsonPath("$.data.initialThought").value("나는 일 못하는 사람인가 봐요."))
+                .andExpect(jsonPath("$.data.alternativeThought").value("그날 손님이 몰렸고 실수 하나로 일 못하는 사람은 아닌 것 같아요."))
+                .andExpect(jsonPath("$.data.underlyingNeed").value("손님 앞 말고 따로 말해주길 바랐다"))
+                .andExpect(jsonPath("$.data.copingStrategy").value("친구랑 편의점에서 이야기하기"))
+                .andExpect(jsonPath("$.data.actionPlan").value("다음 근무 때 영수증과 한 번 더 대조하기"))
+                .andExpect(jsonPath("$.data.keySentence").isNotEmpty())
+                .andExpect(jsonPath("$.data.malangiReason").value("속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요."))
+                .andExpect(jsonPath("$.data.timeline[0].step").value("STEP_01"))
+                .andExpect(jsonPath("$.data.timeline[-1:].step").value("STEP_06"));
     }
 
     @Test
@@ -228,6 +253,54 @@ class CounselingApiTests {
                 .andExpect(status().isNoContent());
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM counseling_messages WHERE session_id = ?",
                 Integer.class, sessionId)).isZero();
+    }
+
+    @Test
+    void listsPagesAndDeletesOnlyOwnRecords() throws Exception {
+        String owner = registerAndLogin("record-owner@example.com");
+        String other = registerAndLogin("record-other@example.com");
+        mockMvc.perform(get("/api/v1/records").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0))
+                .andExpect(jsonPath("$.data.last").value(true));
+
+        long first = finishQuickly(owner, "발표를 망쳤어");
+        long second = finishQuickly(owner, "친구랑 싸웠어");
+        mockMvc.perform(get("/api/v1/records?page=0&size=1").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].resultId").value(second)) // 최근 기록부터
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.totalPages").value(2))
+                .andExpect(jsonPath("$.data.last").value(false));
+        mockMvc.perform(get("/api/v1/records?size=100").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/v1/records/" + first).header("Authorization", "Bearer " + other))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("RECORD_NOT_FOUND"));
+        mockMvc.perform(delete("/api/v1/records/" + first).header("Authorization", "Bearer " + other))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/records/" + first).header("Authorization", "Bearer " + owner))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/v1/records/" + first).header("Authorization", "Bearer " + owner))
+                .andExpect(status().isNotFound());
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM counseling_results WHERE user_id = "
+                + "(SELECT id FROM users WHERE email = ?)", Integer.class, "record-owner@example.com")).isEqualTo(1);
+    }
+
+    /** 첫 메시지에서 바로 그만두고 정리까지 마친다. 결과 ID를 돌려준다. */
+    private long finishQuickly(String token, String message) throws Exception {
+        ai.push(new CounselingAi.ConversationReply("오늘은 여기까지 해도 괜찮소.", false, null, Map.of(), List.of(), true, null));
+        long sessionId = sessionId(start(token, message).andExpect(jsonPath("$.data.nextInput").value("POST_INTENSITY")));
+        ai.push(reply("오늘 이야기를 정리해 보았소.", true, null,
+                Map.of("summary", message + " 속상했어요", "keySentence", "속상한 마음이 있었어요",
+                        "malangiReason", "부드럽게 감싸 쥐며 달래 봐요."), List.of()));
+        MvcResult done = call(token, "/" + sessionId + "/complete",
+                "{\"postIntensity\":3,\"primaryEmotion\":\"속상함\",\"preIntensity\":6}")
+                .andExpect(status().isOk())
+                .andReturn();
+        return ((Number) JsonPath.read(done.getResponse().getContentAsString(), "$.data.resultId")).longValue();
     }
 
     @Test

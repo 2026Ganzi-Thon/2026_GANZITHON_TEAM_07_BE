@@ -2,6 +2,7 @@ package com.ganzithon.backend.counseling.adapter.out.persistence;
 
 import com.ganzithon.backend.counseling.application.port.out.CounselingSessionStore;
 import com.ganzithon.backend.counseling.application.port.out.MalangiReward;
+import com.ganzithon.backend.counseling.application.port.out.RecordStore;
 import com.ganzithon.backend.counseling.domain.CounselingSession;
 import com.ganzithon.backend.counseling.domain.CounselingStep;
 import com.ganzithon.backend.counseling.domain.MessageSender;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiReward {
+class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiReward, RecordStore {
     private final CounselingSessionJpaRepository sessions;
     private final CounselingMessageJpaRepository messages;
     private final CounselingResultJpaRepository results;
@@ -100,6 +101,31 @@ class CounselingPersistenceAdapter implements CounselingSessionStore, MalangiRew
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM malangi_sessions WHERE id = ? AND user_id = ?",
                 Integer.class, malangiSessionId, userId);
         return count != null && count > 0;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StoredResult> findPage(long userId, int page, int size) {
+        return results.findPage(userId, PageRequest.of(page, size)).stream().map(CounselingPersistenceAdapter::stored)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long count(long userId) {
+        return results.countByUser(userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<StoredResult> findResult(long userId, long resultId) {
+        return results.findOwned(resultId, userId).map(CounselingPersistenceAdapter::stored);
+    }
+
+    private static StoredResult stored(CounselingResultEntity r) {
+        return new StoredResult(r.id(), r.sessionId(), r.createdAt(), r.situation(), r.primaryEmotion(),
+                r.preIntensity(), r.postIntensity(), r.summary(), r.recommendedMalangi(),
+                r.timeline() == null ? List.of() : new ArrayList<>(r.timeline()));
     }
 
     /** 추천 말랑이 자동 해금 (features.md F-04). 행이 없으면 해금된 상태로 만든다. */

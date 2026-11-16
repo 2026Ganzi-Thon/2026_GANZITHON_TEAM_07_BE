@@ -27,6 +27,15 @@ interface CounselingMessageJpaRepository extends JpaRepository<CounselingMessage
 }
 
 interface CounselingResultJpaRepository extends JpaRepository<CounselingResultEntity, Long> {
+    @Query("select r from CounselingResultEntity r where r.userId = :userId order by r.createdAt desc, r.id desc")
+    List<CounselingResultEntity> findPage(@Param("userId") long userId, Pageable pageable);
+
+    @Query("select count(r) from CounselingResultEntity r where r.userId = :userId")
+    long countByUser(@Param("userId") long userId);
+
+    @Query("select r from CounselingResultEntity r where r.id = :id and r.userId = :userId")
+    Optional<CounselingResultEntity> findOwned(@Param("id") long id, @Param("userId") long userId);
+
     @Modifying
     @Query("delete from CounselingResultEntity r where r.sessionId = :sessionId")
     int deleteBySession(@Param("sessionId") long sessionId);

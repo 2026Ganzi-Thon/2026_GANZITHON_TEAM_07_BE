@@ -179,6 +179,9 @@ public class CounselingService implements CounselingUseCase {
         entry.put("malangiReason", reason);
         entry.put("secondaryEmotion", state.secondaryEmotion());
         entry.put("record", record);
+        for (String key : List.of("triggerFactor", "underlyingNeed", "copingStrategy")) {
+            entry.put(key, ReplyRules.notEmpty(state.slot(key)) ? state.slot(key) : null); // 기록함 상세용 확인된 슬롯
+        }
         entry.put("timestamp", now().toString());
         state.addTimeline(entry);
 

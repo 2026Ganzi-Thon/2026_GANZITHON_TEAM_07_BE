@@ -69,4 +69,13 @@ class CounselingResultEntity {
     }
 
     Long id() { return id; }
+    Long sessionId() { return sessionId; }
+    String situation() { return situation; }
+    String primaryEmotion() { return primaryEmotion; }
+    Integer preIntensity() { return preIntensity; }
+    Integer postIntensity() { return postIntensity; }
+    String summary() { return summary; }
+    String recommendedMalangi() { return recommendedMalangi; }
+    List<Map<String, Object>> timeline() { return timeline; }
+    LocalDateTime createdAt() { return createdAt; }
 }

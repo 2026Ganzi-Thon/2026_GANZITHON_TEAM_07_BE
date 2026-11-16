@@ -12,7 +12,7 @@ public class CounselingExceptionHandler {
     @ExceptionHandler(CounselingFailure.class)
     ResponseEntity<ApiEnvelope<Object>> handleCounselingFailure(CounselingFailure failure) {
         HttpStatus status = switch (failure.code()) {
-            case SESSION_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case SESSION_NOT_FOUND, RECORD_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case SESSION_CLOSED, INPUT_NOT_EXPECTED -> HttpStatus.CONFLICT;
             case INVALID_INPUT, EMOTION_REQUIRED -> HttpStatus.BAD_REQUEST;
         };
