@@ -328,6 +328,11 @@ public class CounselingService implements CounselingUseCase {
             return process(session, history, text, fromServer, depth + 1, triggerMessageId);
         }
 
+        if (serverResolved && !listen && StepTargets.stepDone(step, state)) {
+            // 서버가 '답 없음'으로 단계를 끝냈다 → 다시 묻거나 후보를 권하는 줄은 버리고 받아 주는 말만 남긴다
+            if (d.userMessage.contains("\n")) d.userMessage = d.userMessage.split("\n")[0].strip();
+            d.replyOptions = new ArrayList<>();
+        }
         // 전환: 필수 슬롯이 확인됐고, AI가 전환을 추천했거나 서버가 '답 없음'으로 확정했을 때 (05번 이슈)
         if (listen || !StepTargets.stepDone(step, state) || !(d.transitionReady || serverResolved)) {
             return finish(session, d.userMessage, d.replyOptions);
