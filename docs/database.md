@@ -245,6 +245,19 @@ V2 마이그레이션은 기존 사용자 중 `SLANGI` 행이 없는 계정에 �
 | `recommended_malangi`| VARCHAR(50)| Y | — | NULL | 추천 말랑이 (`SLANGI`, `SQUISHY`, `WAKPPU`) |
 | `timeline` | JSON | N | — | — | 특정 메시지 기준 감정·단계 변화 타임라인 배열 (세션 완료 시 확정 복사) |
 | `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 기록 일시 |
+| `is_hidden` | BOOLEAN | N | — | FALSE | 마음 보관함 숨기기 (V5) |
+
+### 3-5-1. `counseling_reports` (테스형의 월간 분석 레포트 캐시, V5)
+
+| 컬럼명 | 데이터 타입 | NULL 허용 | 키 / 제약조건 | 기본값 | 설명 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `id` | BIGINT | N | PK, AUTO_INCREMENT | — | 레포트 ID |
+| `user_id` | BIGINT | N | FK (`users.id`, ON DELETE CASCADE) | — | 회원 ID |
+| `period_year` | INT | N | UNIQUE(`user_id`, `period_year`, `period_month`) | — | 대상 연도 |
+| `period_month` | INT | N | 〃 | — | 대상 월 |
+| `source_signature` | VARCHAR(100) | N | — | — | 만들 때 기록 상태(개수:마지막 결과 ID). 바뀌면 다시 만든다 |
+| `content` | JSON | N | — | — | AI 레포트 (`summary`, `thoughtPatterns`, `helpfulCoping`, `changedView`, `suggestion`) |
+| `created_at` | DATETIME(6) | N | — | CURRENT_TIMESTAMP(6) | 생성 일시 |
 
 ---
 
