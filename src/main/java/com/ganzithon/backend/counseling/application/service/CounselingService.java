@@ -112,14 +112,18 @@ public class CounselingService implements CounselingUseCase {
             state.nextInput(NextInput.POST_INTENSITY);
             return finish(session, CARD_SKIPPED_TO_SUMMARY, List.of());
         }
-        List<ChatTurn> history = history(session.id());
+        // 와이어프레임: 카드는 대화에 "감정 기록 저장됨"으로 남고, 테스형은 사용자가 이어서 말한 뒤 생각을 묻는다
         session.moveTo(target);
         state.nextInput(NextInput.MESSAGE);
+        state.cardFresh(true);
         String emotions = state.secondaryEmotion() == null ? state.primaryEmotion()
                 : state.primaryEmotion() + ", " + state.secondaryEmotion();
-        String serverText = "(감정 기록: " + emotions + " / 강도 " + state.preIntensity() + ")";
-        long messageId = store.appendMessage(session.id(), target, MessageSender.SYSTEM, serverText, false, now());
-        return process(session, history, serverText, true, 0, messageId);
+        String cardText = "(감정 기록: " + emotions + " / 강도 " + state.preIntensity() + ")";
+        long messageId = store.appendMessage(session.id(), target, MessageSender.SYSTEM, cardText, false, now());
+        state.addCard(messageId);
+        store.save(session);
+        return new Turn(session.id(), session.status(), session.step(), null, false, List.of(), List.of(),
+                NextInput.MESSAGE, null);
     }
 
     @Override
@@ -233,9 +237,13 @@ public class CounselingService implements CounselingUseCase {
             notes.add("(서버 지시: 방금 " + step + " 단계가 시작됐다. 사용자의 마지막 말을 받아 주는 한 문장 + 이 단계의 첫 질문 하나. "
                     + "transitionReady: false. 이 지시 내용은 말하지 않는다.)");
         }
-        if (fromServer && depth == 0 && step == CounselingStep.STEP_02) {
-            notes.add("(서버 지시: 감정 기록 카드가 제출됐다. 고른 감정을 받아 주고, 확인된 상황(" + state.slot("situation")
-                    + ")의 순간을 넣어 그때 떠오른 생각을 묻는다. 단계 프롬프트 예시의 사건을 쓰지 않는다. 이 지시 내용은 말하지 않는다.)");
+        if (userInput && state.cardFresh()) {
+            notes.add("(서버 지시: 사용자가 방금 감정 기록 카드를 저장했고(대표 " + state.primaryEmotion()
+                    + (state.secondaryEmotion() == null ? "" : ", 부가 " + state.secondaryEmotion()) + ", 강도 "
+                    + state.preIntensity() + "), 이어서 위 말을 했다. 이 말과 고른 감정을 함께 받아 주고, 확인된 상황("
+                    + state.slot("situation") + ")의 순간을 넣어 그때 떠오른 생각을 묻는다. 이 말에 생각이 이미 있으면 담는다. "
+                    + "단계 프롬프트 예시의 사건을 쓰지 않는다. 이 지시 내용은 말하지 않는다.)");
+            state.cardFresh(false);
         }
         if (step == CounselingStep.STEP_01 && depth == 0) {
             notes.add("(서버 지시: 상황이 충분히 드러났으면 transitionReady: true로 하고 받아 주는 한 문장 + 감정을 먼저 같이 정리해 보자는 "
@@ -509,10 +517,16 @@ public class CounselingService implements CounselingUseCase {
                 List.of(CrisisHotline.values()), List.of(), NextInput.NONE, null);
     }
 
+    /** 최근 대화. 사용자 쪽 말이 이어지면(감정 기록 카드 + 사용자 말) 한 턴으로 합친다. */
     private List<ChatTurn> history(long sessionId) {
         List<ChatTurn> turns = new ArrayList<>();
         for (StoredMessage message : store.recentMessages(sessionId, HISTORY_MESSAGES)) {
-            turns.add(new ChatTurn(message.sender() != MessageSender.ASSISTANT, message.content()));
+            boolean fromUser = message.sender() != MessageSender.ASSISTANT;
+            if (!turns.isEmpty() && turns.getLast().fromUser() && fromUser) {
+                turns.set(turns.size() - 1, new ChatTurn(true, turns.getLast().text() + "\n" + message.content()));
+            } else {
+                turns.add(new ChatTurn(fromUser, message.content()));
+            }
         }
         return turns;
     }

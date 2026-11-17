@@ -28,6 +28,10 @@ public class CounselingState {
     private String backNote;
     private boolean endRequested;
     private NextInput nextInput = NextInput.MESSAGE;
+    /** 감정 기록 카드를 막 저장했고 아직 사용자의 다음 말을 받지 않았다 (와이어프레임: 카드 저장 후 사용자 차례) */
+    private boolean cardFresh;
+    /** 대화 안 감정 기록 카드 (대화 다시 보기용). messageId, primaryEmotion, secondaryEmotion, triggerFactor, intensity */
+    private final List<Map<String, Object>> cards = new ArrayList<>();
 
     // STEP_06 정리 결과
     private String summary;
@@ -93,6 +97,19 @@ public class CounselingState {
     public boolean endRequested() { return endRequested; }
     public void endRequested(boolean requested) { this.endRequested = requested; }
     public NextInput nextInput() { return nextInput; }
+    public boolean cardFresh() { return cardFresh; }
+    public void cardFresh(boolean fresh) { this.cardFresh = fresh; }
+    public List<Map<String, Object>> cards() { return cards; }
+
+    public void addCard(long messageId) {
+        Map<String, Object> card = new LinkedHashMap<>();
+        card.put("messageId", messageId);
+        card.put("primaryEmotion", primaryEmotion);
+        card.put("secondaryEmotion", secondaryEmotion);
+        card.put("triggerFactor", slots.get("triggerFactor"));
+        card.put("intensity", preIntensity);
+        cards.add(card);
+    }
     public void nextInput(NextInput input) { this.nextInput = input; }
 
     public void markAnswered(String target) {
@@ -146,6 +163,7 @@ public class CounselingState {
         flow.put("backNote", backNote);
         flow.put("endRequested", endRequested);
         flow.put("nextInput", nextInput.name());
+        flow.put("cardFresh", cardFresh);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("summary", summary);
@@ -158,6 +176,7 @@ public class CounselingState {
         map.put("flow", flow);
         map.put("result", result);
         map.put("inProgressTimeline", new ArrayList<>(timeline));
+        map.put("emotionCards", new ArrayList<>(cards));
         return map;
     }
 
@@ -183,6 +202,7 @@ public class CounselingState {
         state.endRequested = Boolean.TRUE.equals(flow.get("endRequested"));
         String next = asString(flow.get("nextInput"));
         state.nextInput = next == null ? NextInput.MESSAGE : NextInput.valueOf(next);
+        state.cardFresh = Boolean.TRUE.equals(flow.get("cardFresh"));
 
         Map<String, Object> result = asMap(map.get("result"));
         state.summary = asString(result.get("summary"));
@@ -190,6 +210,11 @@ public class CounselingState {
         state.malangiReason = asString(result.get("malangiReason"));
         asMap(result.get("record")).forEach((key, value) -> state.record.put(key, asString(value)));
 
+        if (map.get("emotionCards") instanceof List<?> saved) {
+            for (Object card : saved) {
+                if (card instanceof Map<?, ?> m) state.cards.add(new LinkedHashMap<>((Map<String, Object>) m));
+            }
+        }
         if (map.get("inProgressTimeline") instanceof List<?> entries) {
             for (Object entry : entries) {
                 if (entry instanceof Map<?, ?> m) state.timeline.add(new LinkedHashMap<>((Map<String, Object>) m));

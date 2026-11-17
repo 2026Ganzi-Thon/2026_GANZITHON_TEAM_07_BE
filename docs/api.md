@@ -11,7 +11,7 @@
 - **API 기본 경로:** `/api/v1`
 - **인증 방식:** `Authorization: Bearer <JWT_ACCESS_TOKEN>` (헤더 기반)
 - **Content-Type:** `application/json; charset=UTF-8`
-- **Swagger UI:** `http://127.0.0.1:8080/swagger-ui/index.html` (`.env`에서 `API_DOCS_ENABLED=true` 설정 시)
+- **Swagger UI:** `http://127.0.0.1:8080/swagger-ui/index.html` (`API_DOCS_ENABLED=true` 설정 시). 로그인으로 받은 Access Token을 Authorize 버튼에 넣으면 인증이 필요한 API도 바로 호출할 수 있습니다.
 
 ### 공통 응답 봉투 규약 (API Standard Response)
 
@@ -56,6 +56,10 @@
 | **AI 세션** | DELETE| `/api/v1/counseling/sessions/{sessionId}` | 세션 영구 삭제 (위기 세션, 진행 중 세션, 완료 세션 일괄 삭제) | O | F-08, F-09 |
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
+| **마음 기록함** | GET | `/api/v1/records/calendar` | 월간 캘린더와 자주 느낀 감정 | O | F-08, F-11 |
+| **마음 기록함** | GET | `/api/v1/records/report` | 테스형의 월간 분석 레포트 | O | F-12 |
+| **마음 기록함** | GET | `/api/v1/records/{resultId}/messages` | 상담 대화 다시 보기 (감정 기록 카드 포함) | O | F-08 |
+| **마음 기록함** | PATCH | `/api/v1/records/{resultId}/hidden` | 기록 숨기기 / 다시 보이기 | O | F-08 |
 | **마음 기록함** | DELETE| `/api/v1/records/{resultId}` | 상담 기록 및 연관 세션 삭제 | O | F-08 |
 | **말랑이** | GET | `/api/v1/malangis` | 보유 말랑이 목록, 고유 상태 및 현재 선택된 말랑이 조회 | O | F-04, F-05 |
 | **말랑이** | PATCH | `/api/v1/malangis/{malangiType}/select` | 메인 화면 대표 말랑이 변경 | O | F-05 |
@@ -232,8 +236,8 @@
 ```text
 POST /sessions (첫 메시지, STEP_01)
   → POST /messages … (nextInput=MESSAGE)
-  → nextInput=EMOTION_CARD → POST /emotion (대표·부가 감정, 유발 상황, 상담 전 강도) → STEP_02
-  → POST /messages … STEP_02~05 (생각 질문 아래 replyOptions 칩)
+  → nextInput=EMOTION_CARD → POST /emotion (대표·부가 감정, 유발 상황, 상담 전 강도) → STEP_02 (테스형 응답 없음)
+  → POST /messages (사용자가 이어서 말함) → 생각 질문 + replyOptions 칩 → … STEP_02~05
   → nextInput=POST_INTENSITY → POST /complete (상담 후 강도) → STEP_06 정리·기록·말랑이 추천
 위기 신호(1차 서버 필터 → 2차 AI 분류기) → status=ABORTED_RISK, riskDetected=true, nextInput=NONE
 ```
@@ -318,7 +322,8 @@ POST /sessions (첫 메시지, STEP_01)
 }
 ```
 - `secondaryEmotion`, `triggerFactor`(카드에서 고친 유발 상황)는 선택. `preIntensity`는 0~10.
-- **응답 (HTTP 200 OK):** `TurnData` (`currentStep: "STEP_02"`, 생각 질문과 `replyOptions` 칩 2개)
+- **응답 (HTTP 200 OK):** `TurnData` (`currentStep: "STEP_02"`, `aiMessage: null`, `nextInput: "MESSAGE"`)
+- 와이어프레임대로 카드는 대화에 "감정 기록 저장됨"으로 남고 테스형은 먼저 말하지 않는다. 사용자가 이어서 `/messages`로 말하면, 테스형이 그 말과 고른 감정을 받아 주고 생각 질문 + `replyOptions` 칩 2개를 보낸다.
 
 #### 위기 신호 감지 시 응답 규약 (F-09)
 1차 서버 필터(정규식)에서 걸리면 AI를 부르지 않는다. 통과하면 2차 AI 안전 분류기를 상담 호출과 병렬로 부르고, 위기면 상담 응답을 기다리지 않는다. `status`는 `ABORTED_RISK`, `currentStep`은 감지 당시 단계를 유지한다. 결과(`counseling_results`)는 만들지 않는다.
@@ -424,6 +429,7 @@ POST /sessions (첫 메시지, STEP_01)
 | 400 | `EMOTION_REQUIRED` | 감정 없이 완료 요청 |
 | 404 | `SESSION_NOT_FOUND` | 세션이 없거나 본인 세션이 아님 |
 | 404 | `RECORD_NOT_FOUND` | 기록이 없거나 본인 기록이 아님 (기록함 API) |
+| 503 | `REPORT_UNAVAILABLE` | 월간 분석 레포트 AI 호출 실패 |
 | 409 | `SESSION_CLOSED` | 이미 끝난 세션(완료, 중단, 위기) |
 | 409 | `INPUT_NOT_EXPECTED` | `nextInput`과 다른 입력 |
 
@@ -512,6 +518,82 @@ POST /sessions (첫 메시지, STEP_01)
 ```
 - 와이어프레임 상세 화면: `initialThought` = "그때의 생각", `alternativeThought` = "새로 본 관점", `actionPlan` = "고른 실천". 대화에서 확인하지 못한 칸은 `null`.
 - 건너뛴 단계는 타임라인 항목이 없을 수 있다. 상세 칸은 타임라인 마지막 STEP_06 항목을 기준으로 채운다.
+
+#### 공통: 날짜·시간
+- `createdAt`은 UTC. 화면용 `date`(yyyy-MM-dd)·`time`(HH:mm)은 서비스 시간대(기본 `Asia/Seoul`, `counseling.timezone`) 기준이다. 캘린더·기간 조회도 이 날짜로 묶는다.
+- 목록·상세·캘린더 항목에 `hidden`(숨기기 여부)이 있다. 숨긴 기록도 내려가며 화면에서 가릴지는 클라이언트가 정한다.
+
+#### [GET] `/api/v1/records` 기간 조회 (주간 보기)
+- `from`, `to` (yyyy-MM-dd, 둘 다 포함)를 주면 그 기간 기록만 최근순으로 준다. 예: `/api/v1/records?from=2026-03-16&to=2026-03-22`
+
+#### [GET] `/api/v1/records/calendar` — 월간 캘린더와 돌아보기
+- **인증:** 필요 (`Bearer <token>`)
+- **Query Parameters:** `year`, `month` (함께 보냄, 없으면 이번 달)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "year": 2026,
+    "month": 3,
+    "recordCount": 8,
+    "days": [
+      { "date": "2026-03-18", "count": 1, "emotions": ["불안함"], "records": [ { "resultId": 101, "date": "2026-03-18", "time": "21:40", "primaryEmotion": "불안함", "summary": "발표를 앞두고 계속 실수할 것 같았어요", "preIntensity": 7, "postIntensity": 4, "recommendedMalangi": "SLANGI", "hidden": false } ] }
+    ],
+    "emotionStats": [ { "emotion": "불안함", "count": 3 }, { "emotion": "분노", "count": 2 } ],
+    "averageIntensityChange": -2.5
+  },
+  "error": null
+}
+```
+- `days`는 기록이 있는 날만, 날짜순. `emotions`는 그날 대표 감정(캘린더 점 색). `emotionStats`는 "자주 느낀 감정"(대표 감정 횟수, 많은 순).
+
+#### [GET] `/api/v1/records/report` — 테스형의 월간 분석 레포트 (F-12)
+- **인증:** 필요 (`Bearer <token>`)
+- **Query Parameters:** `year`, `month` (없으면 이번 달)
+- **처리 내용:** 그 달 완료한 상담 기록으로 AI가 레포트를 만든다(`prompts/monthly-report`). 기록이 바뀌지 않았으면 저장해 둔 레포트를 그대로 준다(`counseling_reports`). 기록이 없으면 `recordCount: 0`과 빈 레포트.
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "year": 2026,
+    "month": 3,
+    "recordCount": 8,
+    "summary": "이번 달은 불안이 자주 찾아왔지만, 그때마다 할 수 있는 것부터 하나씩 해 보려 했구려.",
+    "thoughtPatterns": ["실수하면 '나는 일 못하는 사람인가 봐'라는 생각이 먼저 들었어요"],
+    "helpfulCoping": ["친구랑 편의점에서 이야기하기", "주문 나갈 때 영수증과 한 번 더 대조하기"],
+    "changedView": "실수 하나로 내가 정해지지는 않는다고 봤어요.",
+    "suggestion": "불안이 올라올 때 지난번처럼 산책부터 해 보면 좋을 것 같소.",
+    "emotionStats": [ { "emotion": "불안함", "count": 3 } ],
+    "generatedAt": "2026-03-31T12:00:00"
+  },
+  "error": null
+}
+```
+- `summary`는 마음 보관함 상단 요약, 나머지는 눌렀을 때 상세. AI 호출이 두 번 다 실패하면 `503 REPORT_UNAVAILABLE`.
+
+#### [GET] `/api/v1/records/{resultId}/messages` — 대화 다시 보기 (자세히 보기)
+- **인증:** 필요 (`Bearer <token>`)
+- **응답 (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "messages": [
+      { "messageId": 1, "type": "USER", "step": "STEP_01", "content": "발표 잘 할 수 있을까....", "createdAt": "2026-03-18T12:14:00", "time": "21:14", "emotionCard": null },
+      { "messageId": 2, "type": "ASSISTANT", "step": "STEP_01", "content": "팀플 발표 준비 때문에 많이 지치신 것 같소.\n계속 마음에 걸리는 일이 있소?", "createdAt": "2026-03-18T12:16:00", "time": "21:16", "emotionCard": null },
+      { "messageId": 5, "type": "EMOTION_CARD", "step": "STEP_02", "content": null, "createdAt": "2026-03-18T12:18:00", "time": "21:18", "emotionCard": { "primaryEmotion": "속상함", "secondaryEmotion": "억울함", "triggerFactor": "발표 자료를 허락 없이 수정함", "intensity": 7 } }
+    ]
+  },
+  "error": null
+}
+```
+- 순서대로 사용자·테스형 말과 대화 안 감정 기록 카드를 준다. 정리 요청 같은 서버 입력은 빠진다. 테스형 말의 `\n`은 말풍선을 나누는 자리다.
+
+#### [PATCH] `/api/v1/records/{resultId}/hidden` — 숨기기 / 다시 보이기
+- **Request Body:** `{ "hidden": true }`
+- **응답 (HTTP 200 OK):** `{ "resultId": 101, "hidden": true }`
 
 #### [DELETE] `/api/v1/records/{resultId}` — 기록 삭제
 - **인증:** 필요 (`Bearer <token>`)

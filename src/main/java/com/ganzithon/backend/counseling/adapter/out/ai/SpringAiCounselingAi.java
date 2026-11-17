@@ -31,6 +31,7 @@ import tools.jackson.databind.json.JsonMapper;
 class SpringAiCounselingAi implements CounselingAi {
     private static final String CONVERSATION_SCHEMA = "prompts/emotion-conversation/output.schema.json";
     private static final String SAFETY_SCHEMA = "prompts/safety-classifier/output.schema.json";
+    private static final String REPORT_SCHEMA = "prompts/monthly-report/output.schema.json";
 
     private final JsonMapper json = JsonMapper.builder().build();
     private final ChatModel chatModel;
@@ -38,6 +39,7 @@ class SpringAiCounselingAi implements CounselingAi {
     private final int maxTokens;
     private final String conversationSchema;
     private final String safetySchema;
+    private final String reportSchema;
 
     SpringAiCounselingAi(@Value("${counseling.ai.api-key:}") String apiKey,
             @Value("${counseling.ai.model:claude-haiku-5-5}") String model,
@@ -46,6 +48,7 @@ class SpringAiCounselingAi implements CounselingAi {
         this.maxTokens = maxTokens;
         this.conversationSchema = claudeSchema(read(CONVERSATION_SCHEMA));
         this.safetySchema = claudeSchema(read(SAFETY_SCHEMA));
+        this.reportSchema = claudeSchema(read(REPORT_SCHEMA));
         this.chatModel = apiKey == null || apiKey.isBlank() ? null : AnthropicChatModel.builder()
                 .options(AnthropicChatOptions.builder()
                         .apiKey(apiKey)
@@ -91,6 +94,24 @@ class SpringAiCounselingAi implements CounselingAi {
                 safetySchema, false);
         if (!(data.get("riskFlag") instanceof Boolean riskFlag)) throw new Unavailable("riskFlag가 없습니다");
         return new SafetyVerdict(riskFlag, text(data.get("category")));
+    }
+
+    @Override
+    public ReportReply monthlyReport(String systemPrompt, String userContent) {
+        Map<String, Object> data = call(List.of(new SystemMessage(systemPrompt), new UserMessage(userContent)),
+                reportSchema, false);
+        return new ReportReply(text(data.get("summary")), strings(data.get("thoughtPatterns")),
+                strings(data.get("helpfulCoping")), text(data.get("changedView")), text(data.get("suggestion")));
+    }
+
+    private static List<String> strings(Object value) {
+        List<String> out = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            list.forEach(item -> {
+                if (item != null && !String.valueOf(item).isBlank()) out.add(String.valueOf(item).strip());
+            });
+        }
+        return out;
     }
 
     @SuppressWarnings("unchecked")

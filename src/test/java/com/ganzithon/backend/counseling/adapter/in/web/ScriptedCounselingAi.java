@@ -9,6 +9,8 @@ import java.util.Map;
 
 /** 테스트용 LLM: 정해 둔 응답을 차례로 돌려준다. 응답이 없으면 호출 실패. */
 class ScriptedCounselingAi implements CounselingAi {
+    static final String REPORT_SUMMARY = "이번 달은 속상함이 자주 찾아왔지만, 스스로 다른 사정을 찾아냈구려.";
+    private final java.util.concurrent.atomic.AtomicInteger reportCalls = new java.util.concurrent.atomic.AtomicInteger();
     private final Deque<ConversationReply> replies = new ArrayDeque<>();
     private final List<ConversationRequest> requests = new ArrayList<>();
     private volatile boolean risky;
@@ -19,6 +21,7 @@ class ScriptedCounselingAi implements CounselingAi {
         requests.clear();
         risky = false;
         safetyDown = false;
+        reportCalls.set(0);
     }
 
     synchronized void push(ConversationReply reply) {
@@ -48,6 +51,17 @@ class ScriptedCounselingAi implements CounselingAi {
         ConversationReply next = replies.poll();
         if (next == null) throw new Unavailable("no scripted reply");
         return next;
+    }
+
+    int reportCalls() {
+        return reportCalls.get();
+    }
+
+    @Override
+    public ReportReply monthlyReport(String systemPrompt, String userContent) {
+        reportCalls.incrementAndGet();
+        return new ReportReply(REPORT_SUMMARY, List.of("실수하면 일 못하는 사람인가 싶었어요"),
+                List.of("친구랑 이야기하기"), "실수 하나로 정해지지 않는다고 봤어요", "바쁠 때 메모부터 해 보면 좋을 것 같소.");
     }
 
     @Override

@@ -4,6 +4,7 @@ import static com.ganzithon.backend.counseling.adapter.in.web.ScriptedCounseling
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -74,16 +75,24 @@ class CounselingApiTests {
                 .andReturn();
         long sessionId = ((Number) JsonPath.read(started.getResponse().getContentAsString(), "$.data.sessionId")).longValue();
 
-        // 감정 기록 카드 → STEP_02 첫 질문 + 답 예시 칩
-        ai.push(reply("속상하고 허무한 마음이 함께 있었구려.\n그 순간 머릿속에 가장 먼저 스친 생각은 무엇이었소?", false, "initialThought",
-                Map.of(), List.of("난 일을 제대로 못 하는 사람인가 싶었다", "다들 나를 한심하게 볼 것 같았다")));
+        // 감정 기록 카드 저장 → 테스형은 말하지 않고 사용자 차례 (와이어프레임)
+        int before = ai.requests().size();
         call(token, "/" + sessionId + "/emotion",
                 "{\"primaryEmotion\":\"속상함\",\"secondaryEmotion\":\"허무함\",\"preIntensity\":7}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.currentStep").value("STEP_02"))
-                .andExpect(jsonPath("$.data.replyOptions.length()").value(2))
+                .andExpect(jsonPath("$.data.aiMessage").doesNotExist())
                 .andExpect(jsonPath("$.data.nextInput").value("MESSAGE"));
-        assertThat(ai.requests().getLast().userText()).startsWith("(감정 기록: 속상함, 허무함 / 강도 7)");
+        assertThat(ai.requests()).hasSize(before);
+
+        // 사용자가 이어서 말함 → 고른 감정과 함께 받아 주고 생각 질문 + 답 예시 칩
+        ai.push(reply("속상하고 허무한 마음이 함께 있었구려.\n그 순간 머릿속에 가장 먼저 스친 생각은 무엇이었소?", false, "initialThought",
+                Map.of(), List.of("난 일을 제대로 못 하는 사람인가 싶었다", "다들 나를 한심하게 볼 것 같았다")));
+        send(token, sessionId, "손님들 다 보는 앞에서 그러니까 진짜 창피했어")
+                .andExpect(jsonPath("$.data.currentStep").value("STEP_02"))
+                .andExpect(jsonPath("$.data.replyOptions.length()").value(2));
+        assertThat(ai.requests().getLast().userText()).contains("감정 기록 카드를 저장했고");
+        assertThat(ai.requests().getLast().history().getLast().text()).contains("(감정 기록: 속상함, 허무함 / 강도 7)");
 
         // STEP_02 완료 → 서버가 STEP_03 첫 질문을 다시 받아 온다
         ai.push(reply("일 못하는 사람이라는 생각까지 들었구려.", true, null, Map.of("initialThought", "나는 일 못하는 사람인가 봐"), List.of()));
@@ -174,7 +183,51 @@ class CounselingApiTests {
                 .andExpect(jsonPath("$.data.keySentence").isNotEmpty())
                 .andExpect(jsonPath("$.data.malangiReason").value("속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요."))
                 .andExpect(jsonPath("$.data.timeline[0].step").value("STEP_01"))
-                .andExpect(jsonPath("$.data.timeline[-1:].step").value("STEP_06"));
+                .andExpect(jsonPath("$.data.timeline[-1:].step").value("STEP_06"))
+                .andExpect(jsonPath("$.data.hidden").value(false));
+
+        // 자세히 보기: 대화 다시 보기 (감정 기록 카드 포함, 정리 요청 같은 서버 입력은 빠짐)
+        mockMvc.perform(get("/api/v1/records/" + resultId + "/messages").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.messages[0].type").value("USER"))
+                .andExpect(jsonPath("$.data.messages[1].type").value("ASSISTANT"))
+                .andExpect(jsonPath("$.data.messages[2].type").value("EMOTION_CARD"))
+                .andExpect(jsonPath("$.data.messages[2].emotionCard.primaryEmotion").value("속상함"))
+                .andExpect(jsonPath("$.data.messages[2].emotionCard.secondaryEmotion").value("허무함"))
+                .andExpect(jsonPath("$.data.messages[2].emotionCard.triggerFactor").value("손님 앞에서 점장님에게 지적받음"))
+                .andExpect(jsonPath("$.data.messages[2].emotionCard.intensity").value(7))
+                .andExpect(jsonPath("$.data.messages[3].content").value("손님들 다 보는 앞에서 그러니까 진짜 창피했어"))
+                .andExpect(jsonPath("$.data.messages[?(@.content == '정리해 줘')]").isEmpty());
+
+        // 월간 캘린더·돌아보기
+        mockMvc.perform(get("/api/v1/records/calendar").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recordCount").value(1))
+                .andExpect(jsonPath("$.data.days[0].count").value(1))
+                .andExpect(jsonPath("$.data.days[0].emotions[0]").value("속상함"))
+                .andExpect(jsonPath("$.data.days[0].records[0].resultId").value(resultId))
+                .andExpect(jsonPath("$.data.emotionStats[0].emotion").value("속상함"))
+                .andExpect(jsonPath("$.data.averageIntensityChange").value(-3.0));
+
+        // 테스형 분석 레포트: 처음에 만들고, 기록이 그대로면 다시 부르지 않는다
+        mockMvc.perform(get("/api/v1/records/report").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recordCount").value(1))
+                .andExpect(jsonPath("$.data.summary").value(ScriptedCounselingAi.REPORT_SUMMARY))
+                .andExpect(jsonPath("$.data.emotionStats[0].count").value(1));
+        mockMvc.perform(get("/api/v1/records/report").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        assertThat(ai.reportCalls()).isEqualTo(1);
+
+        // 숨기기
+        mockMvc.perform(patch("/api/v1/records/" + resultId + "/hidden").header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"hidden\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hidden").value(true));
+        mockMvc.perform(get("/api/v1/records").header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$.data.content[0].hidden").value(true))
+                .andExpect(jsonPath("$.data.content[0].date").isNotEmpty())
+                .andExpect(jsonPath("$.data.content[0].time").isNotEmpty());
     }
 
     @Test
@@ -275,6 +328,15 @@ class CounselingApiTests {
                 .andExpect(jsonPath("$.data.last").value(false));
         mockMvc.perform(get("/api/v1/records?size=100").header("Authorization", "Bearer " + owner))
                 .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/records?from=2000-01-01&to=2000-01-07").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+        mockMvc.perform(get("/api/v1/records/calendar?year=2026&month=13").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/records/report?year=2000&month=1").header("Authorization", "Bearer " + owner))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recordCount").value(0))
+                .andExpect(jsonPath("$.data.summary").doesNotExist());
 
         mockMvc.perform(get("/api/v1/records/" + first).header("Authorization", "Bearer " + other))
                 .andExpect(status().isNotFound())

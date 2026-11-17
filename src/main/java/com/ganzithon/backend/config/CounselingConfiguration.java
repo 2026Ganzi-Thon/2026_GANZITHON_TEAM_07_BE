@@ -11,6 +11,7 @@ import com.ganzithon.backend.counseling.application.service.CounselingService;
 import com.ganzithon.backend.counseling.application.service.RecordService;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.concurrent.Executors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -29,7 +30,8 @@ class CounselingConfiguration {
     }
 
     @Bean
-    RecordUseCase recordUseCase(RecordStore records, CounselingSessionStore sessions) {
-        return new RecordService(records, sessions);
+    RecordUseCase recordUseCase(RecordStore records, CounselingSessionStore sessions, CounselingAi ai,
+            PromptSource prompts, Clock authClock, @Value("${counseling.timezone:Asia/Seoul}") String timezone) {
+        return new RecordService(records, sessions, ai, prompts, authClock, ZoneId.of(timezone));
     }
 }
