@@ -1,9 +1,0 @@
-.env
-.env.*
-!.env.example
-.gradle
-build
-.idea
-.scratch
-.worktrees
-eval
