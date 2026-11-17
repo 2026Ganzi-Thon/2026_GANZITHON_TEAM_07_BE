@@ -39,7 +39,7 @@ F-00 인증 API와 말랑이 인벤토리 조회·선택 API가 구현되어 있
 
 | 이름 | 용도 | 기본값 / 조건 |
 | :--- | :--- | :--- |
-| SERVER_ADDRESS | 애플리케이션 바인딩 주소 | `127.0.0.1` |
+| SERVER_ADDRESS | 애플리케이션 바인딩 주소 | `127.0.0.1`, 배포 시 `0.0.0.0` |
 | SERVER_PORT | 애플리케이션 포트 | `8080` |
 | DB_HOST | MySQL 호스트 | `127.0.0.1` |
 | DB_PORT | MySQL 호스트 포트 | `3307` |
@@ -52,9 +52,12 @@ F-00 인증 API와 말랑이 인벤토리 조회·선택 API가 구현되어 있
 | KAKAO_CLIENT_ID / KAKAO_CLIENT_SECRET / KAKAO_REDIRECT_URI | Kakao OAuth 앱 설정 | OAuth 사용 시 필수 |
 | DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET / DISCORD_REDIRECT_URI | Discord OAuth 앱 설정 | OAuth 사용 시 필수 |
 | GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI | Google OAuth 앱 설정 | OAuth 사용 시 필수 |
-| LLM_PROVIDER / LLM_MODEL / LLM_API_KEY | 추후 LLM 연동용 예약 항목 | 빈 값, provider 선택·호출 미구현 |
+| CORS_ALLOWED_ORIGINS | 브라우저에서 API를 호출할 수 있는 프론트 주소 (쉼표 구분, 와일드카드 가능) | 기본 `http://localhost:3000,http://localhost:5173`, 배포 시 프론트 주소 |
+| LLM_API_KEY (또는 ANTHROPIC_API_KEY) | AI 감정 대화용 Claude API 키 | 없으면 상담 응답이 기본 문장으로 나감 |
+| LLM_MODEL | Claude 모델 | `claude-haiku-5-5` |
+| COUNSELING_TIMEZONE | 마음 기록함 날짜 묶음 기준 시간대 | `Asia/Seoul` |
 
-기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 앱 시작 시 Flyway가 V1·V2 스키마를 적용하고, Hibernate `ddl-auto=validate`가 엔티티와 스키마를 검증합니다.
+기존 MySQL을 사용하면 Compose 실행을 생략하고 DB 접속 정보를 설정합니다. 앱 시작 시 Flyway가 V1~V5 스키마를 적용하고, Hibernate `ddl-auto=validate`가 엔티티와 스키마를 검증합니다.
 
 Compose는 MySQL을 호스트의 `127.0.0.1`에만 노출합니다. 운영 배포·TLS·인증은 별도 설계 대상이며, 외부 바인딩이 필요하면 `SERVER_ADDRESS`를 환경에 맞게 지정합니다.
 
