@@ -1,0 +1,13 @@
+# 비밀값과 로컬 산출물은 이미지·업로드에 넣지 않는다.
+.env
+.env.*
+!.env.example
+.git
+.gradle
+build
+.idea
+.vscode
+.scratch
+.worktrees
+eval
+*.log
