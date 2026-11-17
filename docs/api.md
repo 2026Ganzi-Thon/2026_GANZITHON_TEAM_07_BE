@@ -11,7 +11,7 @@
 - **API 기본 경로:** `/api/v1`
 - **인증 방식:** `Authorization: Bearer <JWT_ACCESS_TOKEN>` (헤더 기반)
 - **Content-Type:** `application/json; charset=UTF-8`
-- **Swagger UI:** `http://127.0.0.1:8080/swagger-ui/index.html` (`.env`에서 `API_DOCS_ENABLED=true` 설정 시)
+- **Swagger UI:** `http://127.0.0.1:8080/swagger-ui/index.html` (`API_DOCS_ENABLED=true` 설정 시). 로그인으로 받은 Access Token을 Authorize 버튼에 넣으면 인증이 필요한 API도 바로 호출할 수 있습니다.
 
 ### 공통 응답 봉투 규약 (API Standard Response)
 
