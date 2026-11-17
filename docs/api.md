@@ -48,10 +48,11 @@
 | **인증** | POST | `/api/v1/auth/refresh` | Refresh Token 기반 Access/Refresh 토큰 갱신 | X | F-00 |
 | **인증** | POST | `/api/v1/auth/logout` | 로그아웃 및 Refresh Token 폐기 | O | F-00 |
 | **인증** | GET | `/api/v1/auth/me` | 내 프로필 정보 조회 | O | F-00 |
-| **AI 세션** | POST | `/api/v1/counseling/sessions` | 상담 세션 생성 및 시작 (STEP 01~02) | O | F-01, F-02, F-07 |
-| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/messages` | 메시지 전송 및 AI 답변 수신 (STEP 02~05) | O | F-02, F-03, F-09 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions` | 대화 첫 메시지로 상담 세션 시작 (STEP 01) | O | F-01, F-02, F-09 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/emotion` | 대화 안 감정 기록 카드 제출 (대표·부가 감정, 유발 상황, 상담 전 강도) | O | F-01, F-07 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/messages` | 메시지 전송 및 AI 답변 수신 (STEP 01~05) | O | F-02, F-03, F-09 |
 | **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/abort` | 사용자의 명시적 상담 중단 (조기 종료) | O | F-02 |
-| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/complete` | 상담 종료, 사후 강도 입력, 결과/타임라인 확정 및 말랑이 해금 | O | F-03, F-04, F-07, F-08 |
+| **AI 세션** | POST | `/api/v1/counseling/sessions/{sessionId}/complete` | 사후 강도 입력, STEP 06 정리, 결과/타임라인 확정 및 말랑이 해금 | O | F-03, F-04, F-07, F-08 |
 | **AI 세션** | DELETE| `/api/v1/counseling/sessions/{sessionId}` | 세션 영구 삭제 (위기 세션, 진행 중 세션, 완료 세션 일괄 삭제) | O | F-08, F-09 |
 | **마음 기록함** | GET | `/api/v1/records` | 상담 결과 목록 조회 (페이징) | O | F-08 |
 | **마음 기록함** | GET | `/api/v1/records/{resultId}` | 상담 결과 상세 조회 (타임라인 배열 포함) | O | F-08 |
@@ -226,18 +227,37 @@
 
 ### 3-3. AI 감정 상담 세션 및 실시간 대화 (F-01, F-02, F-03, F-07, F-09)
 
-#### [POST] `/api/v1/counseling/sessions` — 세션 생성 및 시작 (STEP 01~02)
+와이어프레임(2026-11-14) 흐름을 따른다. 응답의 `nextInput`이 다음에 보여 줄 입력을 알려 준다.
+
+```text
+POST /sessions (첫 메시지, STEP_01)
+  → POST /messages … (nextInput=MESSAGE)
+  → nextInput=EMOTION_CARD → POST /emotion (대표·부가 감정, 유발 상황, 상담 전 강도) → STEP_02
+  → POST /messages … STEP_02~05 (생각 질문 아래 replyOptions 칩)
+  → nextInput=POST_INTENSITY → POST /complete (상담 후 강도) → STEP_06 정리·기록·말랑이 추천
+위기 신호(1차 서버 필터 → 2차 AI 분류기) → status=ABORTED_RISK, riskDetected=true, nextInput=NONE
+```
+
+| `nextInput` | 클라이언트 동작 |
+| :--- | :--- |
+| `MESSAGE` | 채팅 입력. `replyOptions`가 있으면 눌러서 고를 수 있는 답 예시 칩으로 보여 준다(고른 문장을 그대로 `message`로 보낸다) |
+| `EMOTION_CARD` | 대화 안 감정 기록 카드. `emotionCard.triggerFactor`를 "유발 상황"에 미리 채우고, `primaryEmotions`·`secondaryEmotions`를 칩으로 보여 준다 |
+| `POST_INTENSITY` | 상담 후 감정 강도(0~10) 입력 → `/complete` |
+| `NONE` | 입력 없음 (위기 안내, 완료, 중단) |
+
+- `aiMessage`의 줄바꿈(`\n`)은 공감 말풍선과 질문 말풍선을 나누는 자리다.
+- 공통 대화 응답(`TurnData`): `sessionId`, `status`, `currentStep`, `aiMessage`, `riskDetected`, `emergencyHotlines`(위기일 때만 값), `replyOptions`, `nextInput`, `emotionCard`(`EMOTION_CARD`일 때만 값)
+
+#### [POST] `/api/v1/counseling/sessions` — 대화 첫 메시지로 세션 시작 (STEP 01)
 - **인증:** 필요 (`Bearer <token>`)
 - **Request Body:**
 ```json
 {
-  "malangiSessionId": 302,
-  "situation": "팀 회의에서 내 의견이 가볍게 무시당한 것 같아 마음이 무겁고 답답해요.",
-  "primaryEmotion": "속상함",
-  "preIntensity": 8
+  "message": "알바하다가 주문 두 개를 바꿔 냈는데 점장님이 손님 앞에서 뭐라 했어",
+  "malangiSessionId": 302
 }
 ```
-- `malangiSessionId`는 선택(Nullable) 필드로, 말랑이 만지기 화면에서 '감정 정리하기'를 통해 진입한 경우 직전 말랑이 세션 ID를 전달하여 환기 후 상담 연계 흐름을 기록합니다.
+- `malangiSessionId`는 선택. 말랑이 만지기 화면에서 '감정 정리하기'로 들어온 경우 직전 말랑이 세션 ID(본인 세션만).
 - **응답 (HTTP 201 Created):**
 ```json
 {
@@ -245,24 +265,27 @@
   "data": {
     "sessionId": 501,
     "status": "IN_PROGRESS",
-    "currentStep": "STEP_02",
-    "aiMessage": "회의 중에 그런 소외감을 느끼셨군요. 정말 답답하고 서운하셨겠어요. 그때 상황에서 가장 먼저 머릿속에 떠오른 생각은 어떤 것이었나요?",
-    "riskDetected": false
+    "currentStep": "STEP_01",
+    "aiMessage": "손님 앞에서 지적을 받아 많이 창피했을 것 같소.\n그때의 감정을 먼저 같이 정리해 보면 좋을 것 같소.",
+    "riskDetected": false,
+    "emergencyHotlines": [],
+    "replyOptions": [],
+    "nextInput": "EMOTION_CARD",
+    "emotionCard": {
+      "triggerFactor": "손님 앞에서 점장님에게 지적받음",
+      "primaryEmotions": ["속상함", "불안함", "분노", "억울함", "슬픔", "서운함"],
+      "secondaryEmotions": ["답답함", "외로움", "허무함", "서운함", "억울함"]
+    }
   },
   "error": null
 }
 ```
+- 상황이 부족하면 `nextInput: "MESSAGE"`로 한 번 더 묻는다.
 
-#### [POST] `/api/v1/counseling/sessions/{sessionId}/messages` — 메시지 전송 및 대화 진행 (STEP 02~05)
+#### [POST] `/api/v1/counseling/sessions/{sessionId}/messages` — 메시지 전송 (STEP 01~05)
 - **인증:** 필요 (`Bearer <token>`)
-- **Path Parameter:** `sessionId`
-- **Request Body:**
-```json
-{
-  "message": "‘팀원들이 나를 무능하다고 생각해서 내 의견을 듣지 않는구나’라는 생각이 가장 먼저 들었어요."
-}
-```
-- **일반 성공 응답 (HTTP 200 OK):**
+- **Request Body:** `{ "message": "나는 진짜 일 못하는 사람인가 봐 싶었어" }` (최대 2000자)
+- **응답 (HTTP 200 OK):** `TurnData`
 ```json
 {
   "success": true,
@@ -270,15 +293,35 @@
     "sessionId": 501,
     "status": "IN_PROGRESS",
     "currentStep": "STEP_03",
-    "aiMessage": "그런 생각이 드셨다면 마음이 정말 위축되고 속상하셨을 것 같아요. 혹시 팀원들이 나를 무시해서가 아니라, 마감 시간 때문에 회의를 서둘러서 그랬을 가능성도 있을까요? 그 순간 내가 사실 가장 바랐던 건 무엇이었나요?",
-    "riskDetected": false
+    "aiMessage": "손님 앞에서 지적을 받고 스스로를 그렇게 여길 만큼 마음이 많이 상했구려.\n'나는 진짜 일 못하는 사람인가 봐'라는 생각이 든 이유는 무엇이오?",
+    "riskDetected": false,
+    "emergencyHotlines": [],
+    "replyOptions": [],
+    "nextInput": "MESSAGE",
+    "emotionCard": null
   },
   "error": null
 }
 ```
+- 단계 전환은 서버가 정한다. 단계가 바뀌면 같은 응답에 새 단계의 첫 질문이 담긴다.
+- `nextInput`이 `MESSAGE`가 아닐 때 보내면 `409 INPUT_NOT_EXPECTED`.
+
+#### [POST] `/api/v1/counseling/sessions/{sessionId}/emotion` — 감정 기록 카드 제출 (STEP 01 → 02)
+- **인증:** 필요 (`Bearer <token>`)
+- **Request Body:**
+```json
+{
+  "primaryEmotion": "속상함",
+  "secondaryEmotion": "허무함",
+  "preIntensity": 7,
+  "triggerFactor": "손님 앞에서 점장님에게 지적받음"
+}
+```
+- `secondaryEmotion`, `triggerFactor`(카드에서 고친 유발 상황)는 선택. `preIntensity`는 0~10.
+- **응답 (HTTP 200 OK):** `TurnData` (`currentStep: "STEP_02"`, 생각 질문과 `replyOptions` 칩 2개)
 
 #### 위기 신호 감지 시 응답 규약 (F-09)
-위기 신호 감지 시 `status`는 `ABORTED_RISK`로 전환되고 `currentStep`은 감지 당시 단계가 유지됩니다.
+1차 서버 필터(정규식)에서 걸리면 AI를 부르지 않는다. 통과하면 2차 AI 안전 분류기를 상담 호출과 병렬로 부르고, 위기면 상담 응답을 기다리지 않는다. `status`는 `ABORTED_RISK`, `currentStep`은 감지 당시 단계를 유지한다. 결과(`counseling_results`)는 만들지 않는다.
 ```json
 {
   "success": true,
@@ -289,20 +332,24 @@
     "aiMessage": "혼자 감당하지 않아도 괜찮아요. 지금은 마음의 문제를 해결하기보다 안전하게 도움을 받는 것이 중요해요.",
     "riskDetected": true,
     "emergencyHotlines": [
-      { "name": "자살예방상담전화", "tel": "109", "available": "24시간" },
-      { "name": "정신건강위기상담전화", "tel": "1577-0199", "available": "24시간" },
-      { "name": "청소년상담", "tel": "1388", "available": "24시간" },
-      { "name": "긴급신고", "tel": "112 / 119", "available": "24시간" }
-    ]
+      { "name": "자살예방상담전화", "tel": "109", "available": "24시간 연중무휴" },
+      { "name": "정신건강위기상담전화", "tel": "1577-0199", "available": "24시간 연중무휴" },
+      { "name": "청소년 전화", "tel": "1388", "available": "24시간 연중무휴" },
+      { "name": "긴급 범죄 신고", "tel": "112", "available": "24시간 연중무휴" },
+      { "name": "긴급 구조 신고", "tel": "119", "available": "24시간 연중무휴" }
+    ],
+    "replyOptions": [],
+    "nextInput": "NONE",
+    "emotionCard": null
   },
   "error": null
 }
 ```
+- 안전 분류기가 두 번 다 실패하면 안전 기본 문장을 보내고 대화는 이어 간다(Fail-Safe). 상담 호출이 실패하면 단계별 기본 문장을 보낸다(07번 이슈).
 
 #### [POST] `/api/v1/counseling/sessions/{sessionId}/abort` — 조기 종료
 - **인증:** 필요 (`Bearer <token>`)
-- **Path Parameter:** `sessionId`
-- **처리 내용:** 사용자가 중단 의사를 표현했을 때 세션 상태를 `ABORTED_USER`로 전환하고 당시까지의 슬롯을 보존합니다.
+- **처리 내용:** 세션 상태를 `ABORTED_USER`로 바꾸고 그때까지의 슬롯을 보존한다. 결과는 만들지 않는다.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -316,19 +363,22 @@
   "error": null
 }
 ```
+- 대화 중 사용자가 "그만할래"라고 하면 AI가 받아 주고 `nextInput: "POST_INTENSITY"`가 온다. 이때 `/complete`를 부르면 그때까지 이야기로 정리·기록한다.
 
-#### [POST] `/api/v1/counseling/sessions/{sessionId}/complete` — 상담 완료, 결과 확정 및 말랑이 해금
+#### [POST] `/api/v1/counseling/sessions/{sessionId}/complete` — 상담 후 강도 입력, 정리(STEP 06), 결과 확정 및 말랑이 해금
 - **인증:** 필요 (`Bearer <token>`)
-- **Path Parameter:** `sessionId`
+- **호출 시점:** `nextInput`이 `POST_INTENSITY`일 때
 - **Request Body:**
 ```json
 {
   "postIntensity": 4
 }
 ```
+- 감정 기록 카드 전에 상담을 마쳤다면 `primaryEmotion`, `secondaryEmotion`(선택), `preIntensity`를 같이 보낸다. 없으면 `400 EMOTION_REQUIRED`.
 - **처리 내용:**
-  - 세션 `status`를 `COMPLETED`로 전환하고 `counseling_results` 레코드 및 `timeline` JSON을 확정 저장합니다.
-  - 추천된 말랑이가 잠겨있던 상태라면 `user_malangis`에서 자동으로 해금(`is_unlocked = true`)하고 `isNewlyUnlocked: true` 플래그를 반환합니다.
+  - STEP_06 정리 호출로 요약·남은 문장·기록함 문장·말랑이 추천 사유를 만든다. 추천 말랑이는 대표 감정 룰로 서버가 정한다(06번 이슈).
+  - 세션 `status`를 `COMPLETED`로 바꾸고 `counseling_results`와 `timeline`을 저장한다.
+  - 추천 말랑이가 잠겨 있으면 해금하고 `isNewlyUnlocked: true`.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -337,36 +387,59 @@
     "resultId": 101,
     "sessionId": 501,
     "status": "COMPLETED",
-    "preIntensity": 8,
+    "aiMessage": "오늘 이야기를 정리해 보았소.\n처음엔 일 못하는 사람인가 싶었지만, 그날 손님이 몰리고 피곤했던 사정도 있었다는 걸 직접 찾았소.",
+    "primaryEmotion": "속상함",
+    "secondaryEmotion": "허무함",
+    "preIntensity": 7,
     "postIntensity": 4,
-    "intensityChange": -4,
-    "summary": "회의 중 느낀 소외감 속에서 팀원들의 상황을 새롭게 바라보고, 다음 회의에서 메모로 먼저 소통하겠다는 작은 실천을 도출함.",
+    "intensityChange": -3,
+    "summary": "손님 앞에서 지적을 받아 스스로가 일을 못한다고 느꼈어요",
+    "keySentence": "“나는 일 못하는 사람인가 봐”보다 “실수 하나로 일 못하는 사람은 아닌 것 같아”가 지금은 더 가까운 말 같아요",
+    "record": {
+      "initialThought": "나는 진짜 일 못하는 사람인가 봐요.",
+      "alternativeThought": "그날 손님이 몰리고 피곤했던 사정도 있었어요.",
+      "actionPlan": "다음 근무 때 주문이 나갈 때 영수증과 한 번 더 대조해 보기"
+    },
     "recommendedMalangi": {
       "type": "SQUISHY",
       "name": "스퀴시",
       "isNewlyUnlocked": true,
-      "reason": "속상하고 답답했던 마음을 부드럽게 감싸 안으며 천천히 환기해 보세요."
+      "reason": "속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요."
     }
   },
   "error": null
 }
 ```
+- `summary`는 기록함 카드 제목, `keySentence`는 추천 화면 "대화에서 남은 문장", `record`는 기록함 상세("그때의 생각", "새로 본 관점", "고른 실천")에 쓴다(사용자 1인칭 해요체).
 
 #### [DELETE] `/api/v1/counseling/sessions/{sessionId}` — 세션 영구 삭제 (일원화)
 - **인증:** 필요 (`Bearer <token>`)
-- **Path Parameter:** `sessionId`
-- **처리 내용:** 세션의 상태(`IN_PROGRESS`, `ABORTED_RISK`, `ABORTED_USER`, `COMPLETED`)와 무관하게 해당 세션과 연관된 메시지 및 상담 결과를 DB에서 완전히 영구 삭제합니다.
+- **처리 내용:** 세션 상태와 무관하게 세션, 메시지, 상담 결과를 영구 삭제한다. 본인 세션이 아니거나 없으면 `404`.
 - **응답 (HTTP 204 No Content):** (본문 없음)
+
+#### 오류 코드
+| HTTP | code | 상황 |
+| :--- | :--- | :--- |
+| 400 | `INVALID_INPUT` | 빈 메시지, 2000자 초과, 강도 범위 밖, 남의 말랑이 세션 ID |
+| 400 | `EMOTION_REQUIRED` | 감정 없이 완료 요청 |
+| 404 | `SESSION_NOT_FOUND` | 세션이 없거나 본인 세션이 아님 |
+| 404 | `RECORD_NOT_FOUND` | 기록이 없거나 본인 기록이 아님 (기록함 API) |
+| 409 | `SESSION_CLOSED` | 이미 끝난 세션(완료, 중단, 위기) |
+| 409 | `INPUT_NOT_EXPECTED` | `nextInput`과 다른 입력 |
 
 ---
 
+
 ### 3-4. 마음 기록함 (F-08)
+
+상담을 완료(`/complete`)하면 `counseling_results`에 저장되고 기록함에 나온다. 위기로 멈춘 세션과 중단한 세션은 결과가 없어 나오지 않는다. 문장 칸은 정리(STEP 06)에서 만든 사용자 1인칭 해요체 문장이다(와이어프레임).
 
 #### [GET] `/api/v1/records` — 상담 결과 목록 조회 (페이징)
 - **인증:** 필요 (`Bearer <token>`)
 - **Query Parameters:**
   - `page`: 페이지 번호 (기본값: 0)
-  - `size`: 페이지 크기 (기본값: 10)
+  - `size`: 페이지 크기 (기본값: 10, 1~50)
+- 최근 기록부터 정렬한다. 범위를 벗어나면 `400 INVALID_INPUT`.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -376,11 +449,13 @@
       {
         "resultId": 101,
         "sessionId": 501,
-        "createdAt": "2026-11-07T20:30:00",
+        "createdAt": "2026-11-16T12:30:00",
         "primaryEmotion": "속상함",
-        "preIntensity": 8,
+        "secondaryEmotion": "허무함",
+        "preIntensity": 7,
         "postIntensity": 4,
-        "summary": "회의 중 느낀 소외감 속에서 팀원들의 상황을 새롭게 바라보고 실천을 도출함.",
+        "intensityChange": -3,
+        "summary": "손님 앞에서 지적을 받아 스스로가 일을 못한다고 느꼈어요",
         "recommendedMalangi": "SQUISHY"
       }
     ],
@@ -393,10 +468,12 @@
   "error": null
 }
 ```
+- `summary`는 기록함 카드 제목이다.
 
 #### [GET] `/api/v1/records/{resultId}` — 상담 결과 상세 조회 (타임라인 포함)
 - **인증:** 필요 (`Bearer <token>`)
 - **Path Parameter:** `resultId`
+- 본인 기록이 아니거나 없으면 `404 RECORD_NOT_FOUND`.
 - **응답 (HTTP 200 OK):**
 ```json
 {
@@ -404,65 +481,45 @@
   "data": {
     "resultId": 101,
     "sessionId": 501,
-    "createdAt": "2026-11-07T20:30:00",
-    "situation": "팀 회의에서 내 의견이 가볍게 무시당한 것 같아 마음이 답답함.",
+    "createdAt": "2026-11-16T12:30:00",
+    "situation": "알바 중 주문을 바꿔 내서 점장님이 손님 앞에서 지적함",
+    "triggerFactor": "손님 앞에서 점장님에게 지적받음",
     "primaryEmotion": "속상함",
-    "preIntensity": 8,
+    "secondaryEmotion": "허무함",
+    "preIntensity": 7,
     "postIntensity": 4,
-    "summary": "회의 중 느낀 소외감 속에서 팀원들의 상황을 새롭게 바라보고, 작은 실천을 도출함.",
+    "intensityChange": -3,
+    "summary": "손님 앞에서 지적을 받아 스스로가 일을 못한다고 느꼈어요",
+    "keySentence": "“나는 일 못하는 사람인가 봐”보다 “실수 하나로 일 못하는 사람은 아닌 것 같아”가 지금은 더 가까운 말 같아요",
+    "initialThought": "나는 진짜 일 못하는 사람인가 봐요.",
+    "alternativeThought": "그날 손님이 몰리고 피곤했던 사정도 있었어요.",
+    "underlyingNeed": "손님 앞 말고 따로 말해주길 바랐다",
+    "copingStrategy": "친구랑 편의점에서 이야기하기",
+    "actionPlan": "다음 근무 때 주문이 나갈 때 영수증과 한 번 더 대조해 보기",
     "recommendedMalangi": "SQUISHY",
+    "malangiReason": "속상했던 마음을 부드럽게 감싸 쥐며 달래 봐요.",
     "timeline": [
-      {
-        "order": 1,
-        "triggerMessageId": 3,
-        "step": "STEP_02",
-        "emotion": "속상함",
-        "intensity": 8,
-        "thought": "팀원들이 나를 무능하다고 생각하는구나",
-        "timestamp": "2026-11-07T20:31:10"
-      },
-      {
-        "order": 2,
-        "triggerMessageId": 7,
-        "step": "STEP_03",
-        "alternativeThought": "마감 시간이 촉박해서 안건을 서둘러 넘겼을 수 있다",
-        "underlyingNeed": "내 의견이 존중받고 팀에 기여하고 싶은 욕구",
-        "timestamp": "2026-11-07T20:33:45"
-      },
-      {
-        "order": 3,
-        "triggerMessageId": 9,
-        "step": "STEP_04",
-        "copingStrategy": "과거에도 서운할 때 산책을 하거나 차분히 생각 정리를 했음",
-        "timestamp": "2026-11-07T20:35:12"
-      },
-      {
-        "order": 4,
-        "triggerMessageId": 11,
-        "step": "STEP_05",
-        "actionPlan": "다음 회의 전에 메모로 안건을 먼저 정리해서 공유해보기",
-        "timestamp": "2026-11-07T20:36:50"
-      },
-      {
-        "order": 5,
-        "triggerMessageId": 12,
-        "step": "STEP_06",
-        "intensity": 4,
-        "intensityChange": -4,
-        "recommendedMalangi": "SQUISHY",
-        "timestamp": "2026-11-07T20:38:00"
-      }
+      { "order": 1, "triggerMessageId": 2, "step": "STEP_01", "situation": "...", "triggerFactor": "...", "timestamp": "2026-11-16T12:20:10" },
+      { "order": 2, "triggerMessageId": 5, "step": "STEP_02", "emotion": "속상함", "secondaryEmotion": "허무함", "intensity": 7, "thought": "나는 진짜 일 못하는 사람인가 봐", "timestamp": "..." },
+      { "order": 3, "triggerMessageId": 11, "step": "STEP_03", "alternativeThought": "...", "underlyingNeed": "...", "timestamp": "..." },
+      { "order": 4, "triggerMessageId": 13, "step": "STEP_04", "copingStrategy": "...", "timestamp": "..." },
+      { "order": 5, "triggerMessageId": 19, "step": "STEP_05", "alternativeThought": "...", "actionPlan": "...", "timestamp": "..." },
+      { "order": 6, "triggerMessageId": 21, "step": "STEP_06", "intensity": 4, "intensityChange": -3, "recommendedMalangi": "SQUISHY", "summary": "...", "keySentence": "...", "malangiReason": "...", "record": { "initialThought": "...", "alternativeThought": "...", "actionPlan": "..." }, "timestamp": "..." }
     ]
   },
   "error": null
 }
 ```
+- 와이어프레임 상세 화면: `initialThought` = "그때의 생각", `alternativeThought` = "새로 본 관점", `actionPlan` = "고른 실천". 대화에서 확인하지 못한 칸은 `null`.
+- 건너뛴 단계는 타임라인 항목이 없을 수 있다. 상세 칸은 타임라인 마지막 STEP_06 항목을 기준으로 채운다.
 
 #### [DELETE] `/api/v1/records/{resultId}` — 기록 삭제
 - **인증:** 필요 (`Bearer <token>`)
+- **처리 내용:** 기록과 연결된 상담 세션·메시지까지 영구 삭제한다. 본인 기록이 아니거나 없으면 `404 RECORD_NOT_FOUND`.
 - **응답 (HTTP 204 No Content):** (본문 없음)
 
 ---
+
 
 ### 3-5. 말랑이 인벤토리, 상태 관리 및 만지기 세션 라이프사이클 (F-04, F-05, F-06)
 
