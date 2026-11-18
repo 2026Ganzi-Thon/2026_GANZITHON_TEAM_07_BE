@@ -1,14 +1,23 @@
-# 감정 대화 평가 설계안
+# 감정 대화 평가 설계 및 검증 현황
 
-[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [대화 제어 설계안](design.md) · [질문 전략 조사 근거](research.md) · [서비스 기획안](../service-overview.md)
+[감정 대화 시스템 README](README.md) · [7단계 상담 프로세스](process.md) · [위기 대응 규칙](safety.md) · [대화 제어 아키텍처](design.md) · [질문 전략 조사 근거](research.md) · [서비스 기획안](../service-overview.md)
 
-상태: 제안, 미구현 · 2026-11-03 · 관련 기능: F-02, 연계 F-01·F-03
+상태: 자동·실모델 시나리오 테스트 구현 완료, 전문가·사용자 평가는 미수행 · 2026-11-18 · 관련 기능: F-02, F-09, F-12, 연계 F-01·F-03
 
 ## 목적과 현재 상태
 
 현재 대화에서 무엇이 확인되었는지 추정하고, 사용자 의도에 맞는 다음 행동을 고르며, 적절한 응답을 만드는 능력을 구분해 평가합니다. 공개 평가 자료와 서비스 자체 사례를 함께 활용하고 자동 검사·AI 평가·사람 검토의 역할을 나누는 방안을 제안합니다. 운영 중 모든 대화를 사람이 읽는 방식으로 정의하지 않습니다.
 
-현재는 문헌 확인과 평가 설계만 수행했습니다. 데이터셋 다운로드·변형·학습, 자체 평가 데이터 구축, 모델 실행·채점, 전문가·사용자 검증은 수행하지 않았습니다. 아래 기준은 확정된 출시 기준이나 치료 효과 검증 절차가 아닙니다.
+현재까지 백엔드 단위·통합 테스트(`CrisisSignalFilterTests`, `CounselingApiTests`), 실제 Claude 종단 흐름 테스트(`CounselingLiveFlowTests`), 프롬프트 측정용 시뮬레이션(`eval/`)을 구축해 실행했습니다. 반면 공개 데이터셋(ESConv·CBT-Bench·CounselBench) 정량 채점, 정신건강 전문가·임상 검토, 실제 사용자 평가는 아직 수행하지 않았습니다. 아래 기준은 확정된 치료 효과 검증 절차가 아닙니다.
+
+## 구현 및 수행된 검증 현황 (2026-11-18)
+
+| 구분 | 대상 및 위치 | 검증 범위 | 한계 |
+| :--- | :--- | :--- | :--- |
+| **1차 위기 필터 단위 테스트** | [`CrisisSignalFilterTests.java`](../../src/test/java/com/ganzithon/backend/counseling/domain/CrisisSignalFilterTests.java) | 자해·타해·학대 정규식 감지, 띄어쓰기 우회, 일상 과장·무해 관용구(`자살골`) 허용, 핫라인 5종 | 정규식 사전 밖 은어·간접 표현은 2차 분류기에 의존 |
+| **상담·기록함 API 통합 테스트** | [`CounselingApiTests.java`](../../src/test/java/com/ganzithon/backend/counseling/adapter/in/web/CounselingApiTests.java) | `ScriptedCounselingAi` 기반 전체 와이어프레임 흐름, `INPUT_NOT_EXPECTED` 순서 강제, 규칙 위반 1회 재요청, AI 불가 폴백, 1차/2차 위기 차단, 조기 중단·삭제, 기록함·캘린더·월간 레포트 캐시 | 모킹된 AI 응답을 사용하므로 실제 LLM 품질은 별도 확인 필요 |
+| **실모델 종단 흐름 테스트** | [`CounselingLiveFlowTests.java`](../../src/test/java/com/ganzithon/backend/counseling/adapter/in/web/CounselingLiveFlowTests.java) | `COUNSELING_LIVE_TEST=1` 조건에서 실제 Claude + MockMvc로 6종 시나리오(`basic`, `chips`, `end_midway`, `end_before_card`, `risk_midway`, `listen_back`) 종단 실행 및 하오체·말풍선 `\n`·1턴 1질문·`replyOptions`·기록함 1인칭 해요체 자동 검사 (`build/counseling-live/{id}.md` 출력) | 개발자 작성 시나리오 6종에 대한 형식·흐름 검증이며 임상·사용자 평가 아님 |
+| **프롬프트 측정 시뮬레이션 (참고용)** | [`eval/README.md`](../../eval/README.md), [`prompts/CHANGELOG.md`](../../src/main/resources/prompts/CHANGELOG.md) | 14개 가상 사용자 시나리오 시뮬레이션, 위기 분류기 경계 문장 평가(10개 × 2회, 22개 × 2회), 모델 비교(`claude-haiku-5-5` vs Upstage Solar), 호출 지연 실측(상담 중앙값 ~2.3초·95% 5~6초·최대 7.4초, 정리 3~7초, 분류기 ~1.2초) | 개발 기준이 아닌 프롬프트 품질 측정용 참고 도구. 가상 사용자 LLM 기반 평가 |
 
 ## 참고할 공개 데이터셋과 벤치마크
 

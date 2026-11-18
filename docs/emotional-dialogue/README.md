@@ -1,9 +1,11 @@
 # 테슬랑 AI 감정 대화 시스템 (Emotional Dialogue System)
 
-[프로젝트 README](../../README.md) · [서비스 기획안](../service-overview.md) · [기능 명세서](../features.md) · [API 명세서](../api.md)
+[프로젝트 README](../../README.md) · [서비스 기획안](../service-overview.md) · [기능 명세서](../features.md) · [API 명세서](../api.md) · [프롬프트 안내](../../src/main/resources/prompts/README.md)
 
 테슬랑 서비스의 핵심 엔진인 **AI 감정 대화 시스템**에 관한 독립 전문 문서 모음입니다.
 단순한 일회성 위로나 조언을 넘어, 사용자가 자신의 내면을 명확히 들여다보고 인지적 유연성을 확보하며 건강한 대처 행동을 스스로 선택할 수 있도록 돕는 대화형 감정 케어 시스템을 정의합니다.
+
+> **구현 상태 (2026-11-18):** Spring AI(`claude-haiku-5-5`) 기반 상담 대화(`F-01`~`F-03`, `F-07`), 2중 위기 감지(`F-09`), 마음 기록함(`F-08`), 월간 분석 레포트(`F-12`)까지 백엔드 구현이 반영되었습니다. 실제 프롬프트 파일과 변경 이력은 [`src/main/resources/prompts/`](../../src/main/resources/prompts/README.md) 및 [`CHANGELOG.md`](../../src/main/resources/prompts/CHANGELOG.md)에서 관리합니다.
 
 ---
 
@@ -26,11 +28,11 @@
 
 | 문서 | 핵심 내용 | 주요 대상 독자 |
 | :--- | :--- | :--- |
-| **[1. 상담 프로세스 명세 (process.md)](process.md)** | STEP 01~07 단계별 목적, 핵심 질문 예시, 수집 데이터 규약, 단계 전이 규칙 | 기획자, 프롬프트 엔지니어, BE 개발자 |
-| **[2. 위기 대응 및 안전 가드레일 (safety.md)](safety.md)** | 위기 대응 6대 규칙, 서버 1차 + AI 2차 이중 감지, 핫라인 연계, AI 금지 사항, `risk_flag` 격리 | 백엔드 개발자, 보안/안전 담당자 |
-| **[3. BE 대화 제어 및 아키텍처 (design.md)](design.md)** | 백엔드의 대화 상태 머신 통제, 문맥(Context) 구성, 실패 처리 및 복구 | 백엔드 아키텍트, 서버 개발자 |
-| **[4. 심리 상담 기법 조사 및 이론적 근거 (research.md)](research.md)** | CBT, 소크라테스식 대화법, SFBT, NVC의 이론적 배경과 서비스 적용 원리 | 서비스 기획자, 심리 자문, AI 연구자 |
-| **[5. 대화 평가 프레임워크 (evaluation.md)](evaluation.md)** | 공개 벤치마크(ESConv, CBT-Bench 등), 자체 시나리오, 자동/인간 평가 기준 | QA, AI 엔지니어, 평가 담당자 |
+| **[1. 상담 프로세스 명세 (process.md)](process.md)** | STEP 01~07 단계별 목적, 와이어프레임 대화 흐름, 수집 데이터 규약, 단계 전이 규칙 | 기획자, 프롬프트 엔지니어, BE 개발자 |
+| **[2. 위기 대응 및 안전 가드레일 (safety.md)](safety.md)** | 위기 대응 6대 규칙, 서버 1차 + AI 2차 병렬 이중 감지, 핫라인 연계, Fail-Safe, `risk_flag` 격리 | 백엔드 개발자, 보안/안전 담당자 |
+| **[3. BE 대화 제어 및 아키텍처 (design.md)](design.md)** | `counseling` 모듈 헥사고날 구조, Spring AI 연동·프롬프트 캐싱, 검증·보정, 타임아웃·폴백, 월간 레포트 | 백엔드 아키텍트, 서버 개발자 |
+| **[4. 심리 상담 기법 조사 및 이론적 근거 (research.md)](research.md)** | CBT, 소크라테스식 대화법, SFBT, NVC의 이론적 배경과 서비스 적용 원리·한계 | 서비스 기획자, 심리 자문, AI 연구자 |
+| **[5. 대화 평가 프레임워크 (evaluation.md)](evaluation.md)** | 공개 벤치마크(ESConv, CBT-Bench 등), 구현된 자동·실모델 테스트, 프롬프트 시뮬레이션, 남은 평가 과제 | QA, AI 엔지니어, 평가 담당자 |
 
 ---
 
@@ -50,17 +52,22 @@ flowchart LR
 
 ---
 
-## 4. 7단계 대화 라이프사이클 요약
+## 4. 대화 라이프사이클 및 구현 흐름 요약
+
+AI 캐릭터 **"테스형"**(소크라테스 캐릭터, 차분하고 다정한 하오체)이 질문을 이끌고, 감정과 강도는 대화 안 카드 UI에서 사용자가 직접 입력합니다. 백엔드 열거형 `CounselingStep`은 `STEP_01`~`STEP_06`으로 관리되며, 기획안의 `STEP 07`(영구 저장)은 `STEP_06` 완료 트랜잭션(`POST /complete`) 안에서 함께 확정됩니다.
 
 ```
-[STEP 01] 감정 및 상황 탐색 (Situation)
-   ➔ [STEP 02] 감정과 상황 구조화 (Emotion, Pre-Intensity 0~10, Trigger, Thought)
-      ➔ [STEP 03] 생각의 유연성 탐색 (Alternative Thought, Need)
-         ➔ [STEP 04] 해결 가능성 발견 (coping)
-            ➔ [STEP 05] 감정 정리 및 실천 (Action)
-               ➔ [STEP 06] 말랑이 추천 및 환기 (Post-Intensity 0~10, Malangi)
-                  ➔ [STEP 07] 감정 기록 영구 저장 (마음 기록함)
+[STEP 01] 감정 및 상황 탐색 (Situation, Trigger 초안 추출)
+   ➔ [감정 기록 카드] 대표·부가 감정, 유발 상황, 사전 강도(0~10) 사용자 직접 제출
+      ➔ [STEP 02] 감정과 상황 구조화 (Initial Thought, 필요 시 답 예시 칩)
+         ➔ [STEP 03] 생각의 유연성 탐색 (근거 ➔ Alternative Thought, Underlying Need)
+            ➔ [STEP 04] 해결 가능성 발견 (Coping Strategy)
+               ➔ [STEP 05] 감정 정리 및 실천 (달라진 관점·원하는 상황 ➔ Action Plan)
+                  ➔ [사후 강도 입력] Post-Intensity(0~10) 제출
+                     ➔ [STEP 06 · 07] 대화 정리·남은 문장·말랑이 추천·해금 & 감정 기록 영구 저장 (마음 기록함)
 ```
+
+완료된 월별 기록은 **F-12 테스형의 월간 분석 레포트**(`prompts/monthly-report`)로 묶어 요약, 자주 든 생각, 도움 된 방법, 새로 찾은 관점, 다음 달 권유를 제공합니다(위기 중단 세션 제외).
 
 상세한 각 단계별 가이드와 프롬프트 제어 규칙은 **[process.md](process.md)**를 참조하세요.
 위기 상황 발생 시 안전 조치는 **[safety.md](safety.md)**를 참조하세요.
